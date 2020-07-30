@@ -1,0 +1,319 @@
+Default:
+  Predictor:
+    MaxAge: 604800  # one week
+    PerformAutoML: False
+    PerformHPO: False
+    AlgorithmArn: arn:aws:forecast:::algorithm/NPTS
+    ForecastHorizon: 72
+    FeaturizationConfig:
+      ForecastFrequency: D
+  Forecast:
+    ForecastTypes:
+      - "0.10"
+      - "0.50"
+      - "0.90"
+  DatasetGroup:
+    Domain: RETAIL
+  Datasets:
+    - Domain: RETAIL
+      DatasetType: TARGET_TIME_SERIES
+      DataFrequency: D
+      TimestampFormat: yyyy-MM-dd
+      Schema:
+        Attributes:
+          - AttributeName: item_id
+            AttributeType: string
+          - AttributeName: timestamp
+            AttributeType: timestamp
+          - AttributeName: demand
+            AttributeType: float
+    - Domain: RETAIL
+      DatasetType: RELATED_TIME_SERIES
+      DataFrequency: D
+      TimestampFormat: yyyy-MM-dd
+      Schema:
+        Attributes:
+          - AttributeName: item_id
+            AttributeType: string
+          - AttributeName: timestamp
+            AttributeType: timestamp
+          - AttributeName: price
+            AttributeType: float
+    - Domain: RETAIL
+      DatasetType: ITEM_METADATA
+      Schema:
+        Attributes:
+          - AttributeName: item_id
+            AttributeType: string
+          - AttributeName: category
+            AttributeType: string
+          - AttributeName: brand
+            AttributeType: string
+
+Override:
+  DatasetGroup:
+    Domain: WEB_TRAFFIC
+  Datasets:
+    - Domain: WEB_TRAFFIC
+      DatasetType: TARGET_TIME_SERIES
+      DataFrequency: 15min
+      TimestampFormat: yyyy-MM-dd HH:mm:ss
+      Schema:
+        Attributes:
+          - AttributeName: item_id
+            AttributeType: string
+          - AttributeName: timestamp
+            AttributeType: timestamp
+          - AttributeName: demand
+            AttributeType: float
+    - Domain: WEB_TRAFFIC
+      DatasetType: RELATED_TIME_SERIES
+      DataFrequency: 15min
+      TimestampFormat: yyyy-MM-dd HH:mm:ss
+      Schema:
+        Attributes:
+          - AttributeName: item_id
+            AttributeType: string
+          - AttributeName: timestamp
+            AttributeType: timestamp
+          - AttributeName: pageloadtime
+            AttributeType: float
+    - Domain: RETAIL
+      DatasetType: ITEM_METADATA
+      Schema:
+        Attributes:
+          - AttributeName: item_id
+            AttributeType: string
+          - AttributeName: category
+            AttributeType: string
+  Predictor:
+    MaxAge: 604800  # one week
+    PerformAutoML: False
+    PerformHPO: False
+    AlgorithmArn: arn:aws:forecast:::algorithm/NPTS
+    ForecastHorizon: 72
+    FeaturizationConfig:
+      ForecastFrequency: D
+  Forecast:
+    ForecastTypes:
+      - "0.10"
+      - "0.50"
+      - "0.90"
+
+Mismatch:
+  DatasetGroup:
+    Domain: WEB_TRAFFIC
+  Datasets:
+    - Domain: RETAIL
+      DatasetType: TARGET_TIME_SERIES
+      DataFrequency: D
+      TimestampFormat: yyyy-MM-dd
+      Schema:
+        Attributes:
+          - AttributeName: item_id
+            AttributeType: string
+          - AttributeName: timestamp
+            AttributeType: timestamp
+          - AttributeName: demand
+            AttributeType: float
+  Predictor:
+    MaxAge: 604800  # one week
+    PerformAutoML: False
+    PerformHPO: False
+    AlgorithmArn: arn:aws:forecast:::algorithm/NPTS
+    ForecastHorizon: 72
+    FeaturizationConfig:
+      ForecastFrequency: D
+  Forecast:
+    ForecastTypes:
+      - "0.10"
+      - "0.50"
+      - "0.90"
+
+# Some YAML references for testing
+__Testing__:
+  DataTypes:
+    TargetTimeSeries: &TargetTimeSeries TARGET_TIME_SERIES
+    RelatedTimeSeries: &RelatedTimeSeries RELATED_TIME_SERIES
+    ItemMetadata: &ItemMetadata ITEM_METADATA
+
+  TimestampFormats:
+    YMD: &YMD yyyy-MM-dd
+    YMDHMS: &YMDHMS yyyy-MM-dd HH:mm:ss
+
+  Domains:
+    Retail: &Retail RETAIL
+    InventoryPlanning: &InventoryPlanning INVENTORY_PLANNING
+    EC2Capacity: &EC2Capacity EC2_CAPACITY
+    WorkForce: &WorkForce WORK_FORCE
+    WebTraffic: &WebTraffic WEB_TRAFFIC
+    Metrics: &Metrics METRICS
+    Custom: &Custom CUSTOM
+
+  DataFrequency:
+    Yearly: &Yearly Y
+    Monthly: &Monthly M
+    Weekly: &Weekly W
+    Daily: &Daily D
+    Hourly: &Hourly H
+    HalfHourly: &HalfHourly "30min"
+    QuarterHourly: &QuarterHourly "15min"
+    SixthHourly: &SixthHourly "10min"
+    TwelfthHourly: &TwelfthHourly "5min"
+    Minutely: &Minutely "1min"
+
+  ForecastDefaults: &ForecastDefaults
+      ForecastTypes:
+        - "0.10"
+        - "0.50"
+        - "0.90"
+
+  PredictorDefaults: &PredictorDefaults
+    MaxAge: 604800  # one week
+    PerformAutoML: True
+    ForecastHorizon: 30
+    FeaturizationConfig:
+      ForecastFrequency: D
+
+
+  RetailTargetTimeSeriesSchema: &RetailTargetTimeSeriesSchema
+    Attributes:
+      - AttributeName: item_id
+        AttributeType: string
+      - AttributeName: timestamp
+        AttributeType: timestamp
+      - AttributeName: demand
+        AttributeType: float
+
+  RetailRelatedTimeSeriesSchema: &RetailRelatedTimeSeriesSchema
+    Attributes:
+      - AttributeName: item_id
+        AttributeType: string
+      - AttributeName: timestamp
+        AttributeType: timestamp
+      - AttributeName: price
+        AttributeType: float
+
+  RetailItemMetadataSchema: &RetailItemMetadataSchema
+    Attributes:
+      - AttributeName: item_id
+        AttributeType: string
+      - AttributeName: category
+        AttributeType: string
+      - AttributeName: brand
+        AttributeType: string
+
+  RetailTargetTimeSeries: &RetailTargetTimeSeries
+    Domain: *Retail
+    DatasetType: *TargetTimeSeries
+    DataFrequency: *Daily
+    TimestampFormat: *YMD
+    Schema: *RetailTargetTimeSeriesSchema
+
+  RetailRelatedTimeSeries: &RetailRelatedTimeSeries
+    Domain: *Retail
+    DatasetType: *RelatedTimeSeries
+    DataFrequency: *Daily
+    TimestampFormat: *YMD
+    Schema: *RetailRelatedTimeSeriesSchema
+
+  RetailItemMetadata: &RetailMetadata
+    Domain: *Retail
+    DatasetType: *ItemMetadata
+    DataFrequency: *Daily
+    Schema: *RetailItemMetadataSchema
+
+
+RetailDemandTRM:
+  DatasetGroup:
+    Domain: *Retail
+  Datasets:
+    - *RetailMetadata
+    - *RetailRelatedTimeSeries
+    - *RetailTargetTimeSeries
+  Forecast: *ForecastDefaults
+  Predictor: *PredictorDefaults
+
+RetailDemandTR:
+  DatasetGroup:
+    Domain: *Retail
+  Datasets:
+    - *RetailRelatedTimeSeries
+    - *RetailTargetTimeSeries
+  Forecast: *ForecastDefaults
+  Predictor: *PredictorDefaults
+
+RetailDemandT:
+  DatasetGroup:
+    Domain: *Retail
+  Datasets:
+    - *RetailTargetTimeSeries
+  Forecast: *ForecastDefaults
+  Predictor: *PredictorDefaults
+
+RetailDemandForgottenDatasets:
+  DatasetGroup:
+    Domain: *Retail
+  Datasets:
+    - *RetailRelatedTimeSeries
+  Forecast: *ForecastDefaults
+  Predictor: *PredictorDefaults
+
+
+RetailDemandDuplicateDatasets:
+  DatasetGroup:
+    Domain: *Retail
+  Datasets:
+    - *RetailTargetTimeSeries
+    - *RetailTargetTimeSeries
+  Forecast: *ForecastDefaults
+  Predictor: *PredictorDefaults
+
+RetailDemandTNPTS:
+  DatasetGroup:
+    Domain: *Retail
+
+  Datasets:
+    - *RetailTargetTimeSeries
+
+  Predictor:
+    ForecastHorizon: 72
+    MaxAge: 1
+    FeaturizationConfig:
+      ForecastFrequency: D
+    AlgorithmArn: arn:aws:forecast:::algorithm/NPTS
+
+  Forecast:
+    ForecastTypes:
+      - "0.01"
+      - "0.50"
+      - "0.99"
+
+RetailDemandTRMProphet:
+  DatasetGroup:
+    Domain: *Retail
+
+  Datasets:
+    - *RetailMetadata
+    - *RetailRelatedTimeSeries
+    - *RetailTargetTimeSeries
+
+  Predictor:
+    AlgorithmArn: arn:aws:forecast:::algorithm/Prophet
+    ForecastHorizon: 72
+    FeaturizationConfig:
+      ForecastFrequency: D
+      Featurizations:
+        - AttributeName: price
+          FeaturizationPipeline:
+            - FeaturizationMethodName: filling
+              FeaturizationMethodParameters:
+                futurefill: max
+                middlefill: median
+                backfill: median
+
+  Forecast:
+    ForecastTypes:
+      - "0.01"
+      - "0.50"
+      - "0.99"

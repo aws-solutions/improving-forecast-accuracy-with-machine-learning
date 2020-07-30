@@ -1,0 +1,11 @@
+[run]
+omit =
+    images/*
+    tests/*
+source =
+    shared
+    lambdas
+    notebook
+
+[report]
+fail_under = 80.0

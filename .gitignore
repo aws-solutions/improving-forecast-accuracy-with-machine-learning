@@ -1,0 +1,34 @@
+# Modified based on https://www.gitignore.io/api/visualstudiocode,python
+
+# compiled output
+**/global-s3-assets
+**/regional-s3-assets
+**/build-s3-assets
+**/open-source
+**/tmp
+
+### Python ###
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python Distribution / packaging
+*.egg-info/
+*.egg
+
+# Python Virtual Environments
+**/venv*
+
+## Python Testing
+**/.pytest_cache
+**/.coverage
+
+### VisualStudioCode ###
+.vscode/*
+
+### IntelliJ/ PyCharm ###
+.idea/*
+
+# System Files
+**/.DS_Store

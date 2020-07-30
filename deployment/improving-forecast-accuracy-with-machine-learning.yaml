@@ -1,0 +1,895 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+
+  (SO0123) Workflow Automation for Amazon Forecast %%VERSION%% - This solution provides a
+  mechanism to automate Amazon Forecast predictor and forecast generation and visualize
+  it via an Amazon SageMaker Jupyter Notebook
+
+Parameters:
+  Email:
+    Type: String
+    Description: Email to notify with forecast results
+    Default: ""
+    MaxLength: 50
+    AllowedPattern: '(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$|^$)'
+    ConstraintDescription: "Must be a valid email address"
+
+  LambdaLogLevel:
+    Type: String
+    Description: Change the verbosity of the logs output to CloudWatch
+    Default: WARNING
+    AllowedValues:
+      - DEBUG
+      - INFO
+      - WARNING
+      - ERROR
+
+  NotebookDeploy:
+    Type: String
+    Description: Deploy an Amazon Sagemaker Jupyter Notebook instance
+    Default: 'No'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  NotebookVolumeSize:
+    Type: Number
+    Description: Enter the size of the Notebook instance EBS Volume in GB
+    Default: 10
+    MinValue: 5
+    MaxValue: 16384
+    ConstraintDescription: Must be an integer between 5 (GB) and 16384 (16 TB)
+
+  NotebookInstanceType:
+    Type: String
+    Description: Enter the type of the Notebook instance
+    Default: ml.t2.medium
+    AllowedValues:
+      - ml.t2.medium
+      - ml.t3.medium
+      - ml.r5.large
+      - ml.c5.large
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Improving Forecast Accuracy with Machine Learning Configuration"
+        Parameters:
+          - Email
+      - Label:
+          default: "Visualization Options"
+        Parameters:
+          - NotebookDeploy
+          - NotebookInstanceType
+          - NotebookVolumeSize
+      - Label:
+          default: "Deployment Configuration"
+        Parameters:
+          - LambdaLogLevel
+    ParameterLabels:
+      LambdaLogLevel:
+        default: CloudWatch Log Level
+      NotebookDeploy:
+        default: Deploy Jupyter Notebook
+      NotebookVolumeSize:
+        default: Jupyter Notebook volume size
+      NotebookInstanceType:
+        default: Jupyter Notebook instance type
+
+Mappings:
+  Solution:
+    Data:
+      ID: SO0123
+      Version: '%%VERSION%%'
+      SendAnonymousUsageData: 'Yes'
+    Deployment:
+      Id: '%%DEPLOYMENT_ID%%'
+  SourceCode:
+    General:
+      S3Bucket: "%%BUCKET_NAME%%"
+      KeyPrefix: "%%SOLUTION_NAME%%/%%VERSION%%"
+
+
+Conditions:
+  CreateNotebook: !Equals [ !Ref NotebookDeploy, 'Yes' ]
+  EmailProvided:  !Not [!Equals [ !Ref Email, '' ] ]
+  SendAnonymousUsageData: !Equals [ !FindInMap ['Solution', 'Data', 'SendAnonymousUsageData' ], 'Yes' ]
+
+Resources:
+  # --------- Jupyter Notebook ----------
+  NotebookInstance:
+    Type: AWS::SageMaker::NotebookInstance
+    Condition: CreateNotebook
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W1201
+            reason: If you don't specify a KMS key, Amazon SageMaker encrypts storage volumes with a transient key and discards it immediately after encrypting the storage volume.
+    Properties:
+      InstanceType: !Ref NotebookInstanceType
+      NotebookInstanceName: !Sub "${AWS::StackName}-aws-forecast-visualization"
+      RoleArn: !GetAtt NotebookRole.Arn
+      VolumeSizeInGB: !Ref NotebookVolumeSize
+      LifecycleConfigName: !GetAtt NotebookLifecycleConfig.NotebookInstanceLifecycleConfigName
+      Tags:
+        - Key: FORECAST_BUCKET
+          Value:
+            Fn::Base64:
+              !Sub "${DataBucketName.Name}"
+        - Key: NOTEBOOK_BUCKET
+          Value:
+            Fn::Base64: !Sub
+              - "${bucket}-${AWS::Region}"
+              - bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
+        - Key: NOTEBOOK_PREFIX
+          Value:
+            Fn::Base64: !Sub
+              - "${prefix}/notebooks"
+              - prefix: !FindInMap ["SourceCode", "General", "KeyPrefix"]
+
+  NotebookLifecycleConfig:
+    Type: AWS::SageMaker::NotebookInstanceLifecycleConfig
+    Condition: CreateNotebook
+    Properties:
+      OnStart:
+        - Content:
+            Fn::Base64: |
+              %%substitute('notebook/lifecycle_config.py')|indent(14)%%
+
+  NotebookRole:
+    Type: AWS::IAM::Role
+    Condition: CreateNotebook
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - sagemaker.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ForecastBucketAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                  - s3:ListObjects
+                  - s3:ListBucketMultipartUploads
+                  - s3:ListMultipartUploadParts
+                  - s3:PutObject
+                  - s3:AbortMultipartUpload
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:s3:::${DataBucketName.Name}/*"
+                  - !Sub "arn:${AWS::Partition}:s3:::${DataBucketName.Name}"
+        - PolicyName: NotebookBucketAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:ListObjects
+                Resource:
+                  - Fn::Sub:
+                    - "arn:${AWS::Partition}:s3:::${bucket}-${AWS::Region}/*"
+                    - bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
+                  - Fn::Sub:
+                    - "arn:${AWS::Partition}:s3:::${bucket}-${AWS::Region}"
+                    - bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
+        - PolicyName: SagemakerNotebookListTags
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sagemaker:ListTags
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:sagemaker:${AWS::Region}:${AWS::AccountId}:notebook-instance/*-aws-forecast-visualization"
+        - PolicyName: SagemakerNotebookCloudWatchLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/sagemaker/*"
+
+  # --------- Logs -----------
+  AccessLogsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: This S3 bucket is used as the logging destination for forecast datasets and exports
+          - id: W51
+            reason: This bucket is used for logging. By default it is private and doesn't need a bucket policy.
+    Properties:
+      AccessControl: LogDeliveryWrite
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # --------- Bucket ---------
+  ForecastBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    DependsOn: S3NotificationLambdaS3BucketPermission
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W51
+            reason: This bucket is used for storing forecasts, is private, and does not need a bucket policy.
+    Properties:
+      BucketName: !Sub "${DataBucketName.Name}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LoggingConfiguration:
+        DestinationBucketName: !Ref AccessLogsBucket
+        LogFilePrefix: forecast-bucket-access-logs/
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Function: !GetAtt [S3NotificationLambda, Arn]
+            Event: "s3:ObjectCreated:*"
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: train/
+                  - Name: suffix
+                    Value: .csv
+
+  DataBucketName:
+    Type: Custom::BucketName
+    Properties:
+      ServiceToken: !GetAtt "BucketNameFunction.Arn"
+      BucketPurpose: data-bucket
+      StackName: !Sub "${AWS::StackName}"
+      Id: !Sub "${UniqueName.Id}"
+
+  BucketNameFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: bucket_name.handler
+      Timeout: 10
+      Runtime: python3.8
+      Role: !GetAtt [LambdaLoggingOnlyRole, Arn]
+      Code:
+        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "cloudformation_resources.zip"]]
+
+  UniqueName:
+    Type: Custom::UniqueName
+    Properties:
+      ServiceToken: !GetAtt "UniqueNameFunction.Arn"
+
+  UniqueNameFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: unique_name.handler
+      Timeout: 10
+      Runtime: python3.8
+      Role: !GetAtt [LambdaLoggingOnlyRole, Arn]
+      Code:
+        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "cloudformation_resources.zip"]]
+
+  RedeployLambdas:
+    Type: Custom::RedeployLambdas
+    Properties:
+      ServiceToken: !GetAtt "RedeployLambdasFunction.Arn"
+      Toggle: !FindInMap ['Solution', 'Deployment', 'Id']
+
+  RedeployLambdasFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: generate_id.handler
+      Timeout: 10
+      Runtime: python3.8
+      Role: !GetAtt [LambdaLoggingOnlyRole, Arn]
+      Code:
+        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "cloudformation_resources.zip"]]
+
+  S3NotificationLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-S3NotificationLambda-${RedeployLambdas.Id}"
+      Code:
+        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "notification.zip"]]
+      Handler: handler.notification
+      Runtime: python3.8
+      Timeout: 300
+      Role: !GetAtt [TriggerRole, Arn]
+      Environment:
+        Variables:
+          STEP_FUNCTIONS_ARN: !Ref DeployStateMachine
+          LOG_LEVEL: !Ref LambdaLogLevel
+
+  # --------- SNS Topic ---------
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Workflow Automation for Amazon Forecast
+      KmsMasterKeyId: alias/aws/sns
+
+  NotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: EmailProvided
+    Properties:
+      TopicArn: !Ref NotificationTopic
+      Endpoint: !Ref Email
+      Protocol: email
+
+  # --------- Lambdas ---------
+  CreateDataset:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-CreateDataset-${RedeployLambdas.Id}"
+      Code:
+        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "createdataset.zip"]]
+      Handler: handler.createdataset
+      Runtime: python3.8
+      Role: !GetAtt LambdaForecastRole.Arn
+      Timeout: 300
+      Environment:
+        Variables:
+          LOG_LEVEL: !Ref LambdaLogLevel
+
+  CreateDatasetGroup:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-CreateDatasetGroup-${RedeployLambdas.Id}"
+      Code:
+        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "createdatasetgroup.zip"]]
+      Handler: handler.createdatasetgroup
+      Runtime: python3.8
+      Timeout: 300
+      Role: !GetAtt [LambdaForecastRole, Arn]
+      Environment:
+        Variables:
+          LOG_LEVEL: !Ref LambdaLogLevel
+
+  CreateDatasetImportJob:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-CreateDatasetImportJob-${RedeployLambdas.Id}"
+      Code:
+        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "createdatasetimportjob.zip"]]
+      Handler: handler.createdatasetimportjob
+      Runtime: python3.8
+      Timeout: 300
+      Role: !GetAtt [LambdaForecastRole, Arn]
+      Environment:
+        Variables:
+          FORECAST_ROLE: !GetAtt [ForecastS3AccessRole, Arn]
+          LOG_LEVEL: !Ref LambdaLogLevel
+
+  CreatePredictor:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-CreatePredictor-${RedeployLambdas.Id}"
+      Code:
+        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "createpredictor.zip"]]
+      Handler: handler.createpredictor
+      Runtime: python3.8
+      Timeout: 300
+      Role: !GetAtt [LambdaForecastRole, Arn]
+      Environment:
+        Variables:
+          LOG_LEVEL: !Ref LambdaLogLevel
+
+  CreateForecast:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-CreateForecast-${RedeployLambdas.Id}"
+      Code:
+        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "createforecast.zip"]]
+      Handler: handler.createforecast
+      Runtime: python3.8
+      Timeout: 300
+      Role: !GetAtt [LambdaForecastRole, Arn]
+      Environment:
+        Variables:
+          EXPORT_ROLE: !GetAtt [ForecastS3AccessRole, Arn]
+          LOG_LEVEL: !Ref LambdaLogLevel
+
+  NotifyTopic:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-NotifyTopic-${RedeployLambdas.Id}"
+      Code:
+        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "sns.zip"]]
+      Handler: handler.sns
+      Runtime: python3.8
+      Timeout: 300
+      Role: !GetAtt [NotificationRole, Arn]
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref NotificationTopic
+          LOG_LEVEL: !Ref LambdaLogLevel
+
+  NotifyTopicConditional:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-NotifyTopicCond-${RedeployLambdas.Id}"
+      Code:
+        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "sns.zip"]]
+      Handler: handler.sns_conditional
+      Runtime: python3.8
+      Timeout: 300
+      Role: !GetAtt [NotificationRole, Arn]
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref NotificationTopic
+          LOG_LEVEL: !Ref LambdaLogLevel
+
+  S3NotificationLambdaS3BucketPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      SourceAccount: !Ref "AWS::AccountId"
+      FunctionName: !Ref S3NotificationLambda
+      Principal: "s3.amazonaws.com"
+
+  # --------- Necessary Roles ---------
+  StatesExecutionRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W76
+            reason: "Policy Purpose: This policy grants access to AWS Step Functions to invoke all of its Lambda Functions."
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StatesExecutionPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt [CreateDataset, Arn]
+                  - !GetAtt [CreateDatasetGroup, Arn]
+                  - !GetAtt [CreateDatasetImportJob, Arn]
+                  - !GetAtt [CreatePredictor, Arn]
+                  - !GetAtt [CreateForecast, Arn]
+                  - !GetAtt [NotifyTopic, Arn]
+                  - !GetAtt [NotifyTopicConditional, Arn]
+
+  TriggerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+              Service:
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LoggingPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
+        - PolicyName: StepFunctionExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:StartExecution
+                Resource:
+                  - !Ref DeployStateMachine
+        - PolicyName: ForecastBucketAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:s3:::${DataBucketName.Name}/*"
+                  - !Sub "arn:${AWS::Partition}:s3:::${DataBucketName.Name}"
+
+  NotificationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+              Service:
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LoggingPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
+        - PolicyName: SNSPublishPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - SNS:Publish
+                Resource:
+                  - !Ref NotificationTopic
+
+  LambdaLoggingOnlyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS:
+              Fn::Sub: arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Service:
+            - lambda.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LoggingPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
+
+  LambdaForecastRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: AWS::IAM::Roles for CloudWatch require "*" resources
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+              Service:
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ForecastAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - forecast:Describe*
+                  - forecast:List*
+                  - forecast:Create*
+                  - forecast:Update*
+                Resource: "*"
+        - PolicyName: LoggingPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
+        - PolicyName: ForecastBucketAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:ListObjects
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:s3:::${DataBucketName.Name}/*"
+                  - !Sub "arn:${AWS::Partition}:s3:::${DataBucketName.Name}"
+        - PolicyName: ForecastPassRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !GetAtt [ForecastS3AccessRole, Arn]
+        - PolicyName: ForecastCloudwatchAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Condition:
+                  StringLike:
+                    "cloudwatch:namespace": "Forecast*"
+                Resource: "*"
+
+  ForecastS3AccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - forecast.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ForecastBucketAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:Get*
+                  - s3:List*
+                  - s3:PutObject
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:s3:::${DataBucketName.Name}/*"
+                  - !Sub "arn:${AWS::Partition}:s3:::${DataBucketName.Name}"
+
+  # --------- State Machine ---------
+  DeployStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub "Forecast-Workflow-Automation-${AWS::StackName}"
+      RoleArn: !GetAtt [StatesExecutionRole, Arn]
+      DefinitionString:
+        !Sub
+          - |-
+            {
+              "Comment": "An automation Pipeline for Amazon Forecast",
+              "StartAt": "Notify-On-Error",
+              "States": {
+                "Notify-On-Error": {
+                  "Type": "Task",
+                  "Resource": "${NotifyTopicConditionalArn}",
+                  "ResultPath": "$.inputProcessingFailure",
+                  "Next": "Check-Error"
+                },
+                "Check-Error": {
+                  "Type": "Choice",
+                  "Choices": [
+                    {
+                      "Variable": "$.inputProcessingFailure",
+                      "BooleanEquals": true,
+                      "Next": "FailureState"
+                    }
+                  ],
+                  "Default": "Create-DatasetGroup"
+                },
+                "Create-DatasetGroup": {
+                  "Type": "Task",
+                  "Resource": "${CreateDatasetGroupArn}",
+                  "ResultPath": "$.DatasetGroupArn",
+                  "Retry": [{
+                    "ErrorEquals": ["ResourcePending"],
+                    "IntervalSeconds": 5,
+                    "BackoffRate": 1.05
+                  }],
+                  "Catch": [{
+                    "ErrorEquals": ["ResourceFailed"],
+                    "ResultPath": "$.serviceError",
+                    "Next": "Notify-Failed"
+                  }, {
+                    "ErrorEquals": ["States.ALL"],
+                    "ResultPath": "$.statesError",
+                    "Next": "Notify-Failed"
+                  }],
+                  "Next": "Create-Dataset"
+                },
+                "Create-Dataset": {
+                  "Type": "Task",
+                  "Resource": "${CreateDatasetArn}",
+                  "ResultPath": "$.DatasetArn",
+                  "Retry": [{
+                    "ErrorEquals": ["ResourcePending"],
+                    "IntervalSeconds": 5,
+                    "BackoffRate": 1.05
+                  }],
+                  "Catch": [{
+                    "ErrorEquals": ["ResourceFailed"],
+                    "ResultPath": "$.serviceError",
+                    "Next": "Notify-Failed"
+                  }, {
+                    "ErrorEquals": ["States.ALL"],
+                    "ResultPath": "$.statesError",
+                    "Next": "Notify-Failed"
+                  }],
+                  "Next": "Import-Data"
+                },
+                "Import-Data": {
+                  "Type": "Task",
+                  "Resource": "${ImportDataArn}",
+                  "ResultPath": "$.DatasetImportJobArn",
+                  "Retry": [{
+                    "ErrorEquals": ["ResourcePending"],
+                    "IntervalSeconds": 5,
+                    "BackoffRate": 1.05,
+                    "MaxAttempts": 100
+                  }],
+                  "Catch": [{
+                    "ErrorEquals": ["ResourceFailed"],
+                    "ResultPath": "$.serviceError",
+                    "Next": "Notify-Failed"
+                  }, {
+                    "ErrorEquals": ["States.ALL"],
+                    "ResultPath": "$.statesError",
+                    "Next": "Notify-Failed"
+                  }],
+                  "Next": "Create-Predictor"
+                },
+                "Create-Predictor": {
+                  "Type": "Task",
+                  "Resource": "${CreatePredictorArn}",
+                  "ResultPath": "$.PredictorArn",
+                  "Retry": [{
+                    "ErrorEquals": ["ResourcePending"],
+                    "IntervalSeconds": 5,
+                    "BackoffRate": 1.05,
+                    "MaxAttempts": 100
+                  }],
+                  "Catch": [{
+                    "ErrorEquals": ["ResourceFailed"],
+                    "ResultPath": "$.serviceError",
+                    "Next": "Notify-Failed"
+                  }, {
+                    "ErrorEquals": ["States.ALL"],
+                    "ResultPath": "$.statesError",
+                    "Next": "Notify-Failed"
+                  }],
+                  "Next": "Create-Forecast"
+                },
+                "Create-Forecast": {
+                  "Type": "Task",
+                  "Resource": "${CreateForecastArn}",
+                  "ResultPath": "$.ForecastArn",
+                  "Retry": [{
+                    "ErrorEquals": ["ResourcePending"],
+                    "IntervalSeconds": 5,
+                    "BackoffRate": 1.05,
+                    "MaxAttempts": 100
+                  }],
+                  "Catch": [{
+                    "ErrorEquals": ["ResourceFailed"],
+                    "ResultPath": "$.serviceError",
+                    "Next": "Notify-Failed"
+                  }, {
+                    "ErrorEquals": ["States.ALL"],
+                    "ResultPath": "$.statesError",
+                    "Next": "Notify-Failed"
+                  }],
+                  "Next": "Notify-Success"
+                },
+                "Notify-Success": {
+                  "Type": "Task",
+                  "Resource": "${NotifyTopicArn}",
+                  "ResultPath": "$.NotifyTopic",
+                  "Next": "SuccessState"
+                },
+                "Notify-Failed": {
+                  "Type": "Task",
+                  "Resource": "${NotifyTopicArn}",
+                  "ResultPath": null,
+                  "Next": "FailureState"
+                },
+                "SuccessState": {
+                  "Type": "Succeed"
+                },
+                "FailureState": {
+                  "Type": "Fail"
+                }
+              }
+            }
+          - CreateDatasetArn: !GetAtt [CreateDataset, Arn]
+            CreateDatasetGroupArn: !GetAtt [CreateDatasetGroup, Arn]
+            ImportDataArn: !GetAtt [CreateDatasetImportJob, Arn]
+            CreatePredictorArn: !GetAtt [CreatePredictor, Arn]
+            CreateForecastArn: !GetAtt [CreateForecast, Arn]
+            NotifyTopicArn: !GetAtt [NotifyTopic, Arn]
+            NotifyTopicConditionalArn: !GetAtt [NotifyTopicConditional, Arn]
+
+  SolutionMetricsAnonymousData:
+    Type: "Custom::AnonymousData"
+    Condition: SendAnonymousUsageData
+    Properties:
+      ServiceToken: !GetAtt SolutionMetrics.Arn
+      Solution: !FindInMap ["Solution", "Data", "ID"]
+      Version: !FindInMap ["Solution", "Data", "Version"]
+      Region: !Sub "${AWS::Region}"
+      NotebookDeployed: !If [ CreateNotebook, 'Yes', 'No' ]
+      NotebookType: !If [ CreateNotebook, !Ref NotebookInstanceType, !Ref "AWS::NoValue"]
+
+  SolutionMetrics:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: solution_metrics.handler
+      Timeout: 10
+      Runtime: python3.8
+      Role: !GetAtt [LambdaLoggingOnlyRole, Arn]
+      Code:
+        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "cloudformation_resources.zip"]]
+
+Outputs:
+  StepFunctionsName:
+    Description: Step Functions Name
+    Value: !Ref DeployStateMachine
+  ForecastBucketName:
+    Description: Forecast bucket name to drop your files
+    Value: !Ref ForecastBucket
