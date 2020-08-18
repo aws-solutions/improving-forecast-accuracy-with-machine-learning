@@ -1,0 +1,91 @@
+Default:
+  DatasetGroup:
+    Domain: RETAIL
+
+  Datasets:
+    - Domain: RETAIL
+      DatasetType: TARGET_TIME_SERIES
+      DataFrequency: D
+      TimestampFormat: yyyy-MM-dd
+      Schema:
+        Attributes:
+          - AttributeName: item_id
+            AttributeType: string
+          - AttributeName: timestamp
+            AttributeType: timestamp
+          - AttributeName: demand
+            AttributeType: float
+
+  Predictor:
+    MaxAge: 604800  # one week
+    AlgorithmArn: arn:aws:forecast:::algorithm/ARIMA
+    ForecastHorizon: 30
+    FeaturizationConfig:
+      ForecastFrequency: D
+
+  Forecast:
+    ForecastTypes:
+      - "0.10"
+      - "0.50"
+      - "0.90"
+
+retail_experiment_2:
+  DatasetGroup:
+    Domain: RETAIL
+
+  Datasets:
+    - Domain: RETAIL
+      DatasetType: TARGET_TIME_SERIES
+      DataFrequency: D
+      TimestampFormat: yyyy-MM-dd
+      Schema:
+        Attributes:
+          - AttributeName: item_id
+            AttributeType: string
+          - AttributeName: timestamp
+            AttributeType: timestamp
+          - AttributeName: demand
+            AttributeType: float
+    - Domain: RETAIL
+      DatasetType: RELATED_TIME_SERIES
+      DataFrequency: D
+      TimestampFormat: yyyy-MM-dd
+      Schema:
+        Attributes:
+          - AttributeName: item_id
+            AttributeType: string
+          - AttributeName: timestamp
+            AttributeType: timestamp
+          - AttributeName: price
+            AttributeType: float
+    - Domain: RETAIL
+      DatasetType: ITEM_METADATA
+      Schema:
+        Attributes:
+          - AttributeName: item_id
+            AttributeType: string
+          - AttributeName: category
+            AttributeType: string
+          - AttributeName: brand
+            AttributeType: string
+
+  Predictor:
+    AlgorithmArn: arn:aws:forecast:::algorithm/Prophet
+    MaxAge: 604800  # one week
+    ForecastHorizon: 30
+    FeaturizationConfig:
+      ForecastFrequency: D
+      Featurizations:
+        - AttributeName: price
+          FeaturizationPipeline:
+            - FeaturizationMethodName: filling
+              FeaturizationMethodParameters:
+                futurefill: median
+                middlefill: median
+                backfill: median
+
+  Forecast:
+    ForecastTypes:
+      - "0.01"
+      - "0.50"
+      - "0.99"

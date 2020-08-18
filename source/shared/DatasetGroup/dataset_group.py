@@ -15,9 +15,17 @@ from typing import List
 
 from shared.Dataset.dataset import Dataset
 from shared.Dataset.dataset_domain import DatasetDomain
+from shared.Dataset.dataset_file import DatasetFile
 from shared.DatasetGroup.dataset_group_name import DatasetGroupName
-from shared.helpers import ForecastClient
+from shared.helpers import ForecastClient, DatasetsImporting
+from shared.logging import get_logger
 from shared.status import Status
+
+logger = get_logger(__name__)
+
+
+LATEST_DATASET_UPDATE_FILENAME_TAG = "LatestDatasetUpdateName"
+LATEST_DATASET_UPDATE_FILE_ETAG_TAG = "LatestDatasetUpdateETag"
 
 
 class DatasetGroup(ForecastClient):
@@ -95,14 +103,23 @@ class DatasetGroup(ForecastClient):
                 )
 
         except self.cli.exceptions.ResourceNotFoundException:
-            pass
+            logger.debug(
+                "Dataset Group %s not found - will attempt to create"
+                % self._dataset_group_name
+            )
 
-        self.cli.create_dataset_group(
-            DatasetGroupName=str(self._dataset_group_name),
-            Domain=str(self._dataset_group_domain),
-        )
+        try:
+            self.cli.create_dataset_group(
+                DatasetGroupName=str(self._dataset_group_name),
+                Domain=str(self._dataset_group_domain),
+                Tags=self.tags,
+            )
+        except self.cli.exceptions.ResourceAlreadyExistsException:
+            logger.debug(
+                "Dataset Group %s is already creating" % self._dataset_group_name
+            )
 
-    def update(self, datasets: List[Dataset]):
+    def update(self, datasets: List[Dataset], dataset_file: DatasetFile):
         """
         Update this dataset group's assigned datasets
         :param datasets: The datasets to assign to this dataset group
@@ -115,6 +132,19 @@ class DatasetGroup(ForecastClient):
             dataset.create()
 
         self.cli.update_dataset_group(DatasetGroupArn=self.arn, DatasetArns=arns)
+        self.cli.tag_resource(
+            ResourceArn=self.arn,
+            Tags=[
+                {
+                    "Key": LATEST_DATASET_UPDATE_FILENAME_TAG,
+                    "Value": dataset_file.filename,
+                },
+                {
+                    "Key": LATEST_DATASET_UPDATE_FILE_ETAG_TAG,
+                    "Value": dataset_file.etag,
+                },
+            ],
+        )
 
     @property
     def datasets(self) -> List:
@@ -132,3 +162,27 @@ class DatasetGroup(ForecastClient):
         ]
 
         return datasets_info
+
+    def ensure_ready(self):
+        """
+        Ensure this dataset group is ready (all defined datasets are ACTIVE). Raise an exception if not
+        :return: None
+        """
+        datasets = self.datasets
+
+        datasets_ready = all(dataset.get("Status") == "ACTIVE" for dataset in datasets)
+        if not datasets_ready:
+            msg = f"One or more of the datasets for dataset group {self._dataset_group_name} is not yet ACTIVE\n\n"
+            for dataset in datasets:
+                msg += f"Dataset {dataset.get('DatasetName')} had status {dataset.get('Status')}\n"
+            raise DatasetsImporting(msg)
+
+    @property
+    def latest_timestamp(self, format="%Y_%m_%d_%H_%M_%S"):
+        latest_dataset_modified = max(
+            [dataset.get("LastModificationTime") for dataset in self.datasets]
+        )
+        if format:
+            return latest_dataset_modified.strftime(format)
+        else:
+            return latest_dataset_modified

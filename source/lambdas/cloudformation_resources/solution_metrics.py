@@ -11,56 +11,67 @@
 #  and limitations under the License.                                                                                #
 ######################################################################################################################
 
-import logging, uuid, requests
-from crhelper import CfnResource
+import logging
+import uuid
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
-helper = CfnResource(log_level='INFO')
-METRICS_ENDPOINT = 'https://metrics.awssolutionsbuilder.com/generic'
+import requests
+from crhelper import CfnResource
 
-def _sanitize_data(resource_properties):
+logger = logging.getLogger(__name__)
+helper = CfnResource(log_level="INFO")
+METRICS_ENDPOINT = "https://metrics.awssolutionsbuilder.com/generic"
+
+
+def _sanitize_data(event):
+    resource_properties = event["ResourceProperties"]
     # Remove ServiceToken (lambda arn) to avoid sending AccountId
-    resource_properties.pop('ServiceToken', None)
-    resource_properties.pop('Resource', None)
+    resource_properties.pop("ServiceToken", None)
+    resource_properties.pop("Resource", None)
 
     # Solution ID and unique ID are sent separately
-    resource_properties.pop('Solution', None)
-    resource_properties.pop('UUID', None)
+    resource_properties.pop("Solution", None)
+    resource_properties.pop("UUID", None)
+
+    # Add some useful fields related to stack change
+    resource_properties["CFTemplate"] = (
+        event["RequestType"] + "d"
+    )  # Created, Updated, or Deleted
 
     return resource_properties
 
+
 @helper.create
+@helper.update
+@helper.delete
 def send_metrics(event, _):
-    resource_properties = event['ResourceProperties']
-    random_id = str(uuid.uuid4())
-    helper.Data['UUID'] = random_id
+    resource_properties = event["ResourceProperties"]
+    random_id = event.get("PhysicalResourceId", str(uuid.uuid4()))
+    helper.Data["UUID"] = random_id
 
     try:
-        headers = { 'Content-Type': 'application/json' }
+        headers = {"Content-Type": "application/json"}
         payload = {
-            'Solution': resource_properties['Solution'],
-            'UUID': random_id,
-            'TimeStamp': datetime.utcnow().isoformat(),
-            'Data': _sanitize_data(resource_properties)
+            "Solution": resource_properties["Solution"],
+            "UUID": random_id,
+            "TimeStamp": datetime.utcnow().isoformat(),
+            "Data": _sanitize_data(event),
         }
 
-        logger.info(f'Sending payload: {payload}')
+        logger.info(f"Sending payload: {payload}")
         response = requests.post(METRICS_ENDPOINT, json=payload, headers=headers)
-        logger.info(f'Response from metrics endpoint: {response.status_code} {response.reason}')
-        if 'stackTrace' in response.text:
-            logger.exception('Error submitting usage data: %s' % response.text)
+        logger.info(
+            f"Response from metrics endpoint: {response.status_code} {response.reason}"
+        )
+        if "stackTrace" in response.text:
+            logger.exception("Error submitting usage data: %s" % response.text)
     except requests.exceptions.RequestException:
-        logger.exception('Could not send usage data')
+        logger.exception("Could not send usage data")
     except Exception:
-        logger.exception('Unknown error when trying to send usage data')
+        logger.exception("Unknown error when trying to send usage data")
 
     return random_id
 
-@helper.update
-@helper.delete
-def no_op(_, __):
-    pass  # pragma: no cover
 
 def handler(event, context):
     helper(event, context)  # pragma: no cover

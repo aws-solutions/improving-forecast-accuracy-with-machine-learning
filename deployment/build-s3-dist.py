@@ -104,7 +104,9 @@ class BuildEnvironment:
         self._source_dir = os.path.normpath(
             os.path.join(template_dir, os.pardir, "source")
         )
-        self._notebook_dir = os.path.join(self._source_dir, "notebook", "samples", "notebooks")
+        self._notebook_dir = os.path.join(
+            self._source_dir, "notebook", "samples", "notebooks"
+        )
 
         logger.debug("build environment template directory: %s" % self._template_dir)
         logger.debug(
@@ -251,17 +253,31 @@ class RegionalAssetPackager(BaseAssetPackager):
         ]
         for lambda_dir in lambda_dirs:
             lambda_name = os.path.basename(lambda_dir)
-            logger.info("%s copying shared libraries" % lambda_name)
-            shutil.copytree(
-                src=os.path.join(self.build_env.source_dir, "shared"),
-                dst=os.path.join(lambda_dir, "shared"),
-                dirs_exist_ok=True,
-            )
-
+            is_layer = lambda_name.startswith("lambda_")
             requirements_path = os.path.join(
                 self.build_env.build_dir, lambda_name, "requirements.txt"
             )
             lambda_path = os.path.join(self.build_env.build_dir, lambda_name)
+
+            if is_layer:
+                install_path = os.path.join(
+                    lambda_path, "python", "lib", "python3.8", "site-packages"
+                )
+                logger.info(
+                    "%s is a lambda layer - will install to python 3.8 module path"
+                    % lambda_name
+                )
+                os.makedirs(install_path)
+            else:
+                install_path = lambda_path
+                logger.info("%s is a lambda function - will install directly" % lambda_name)
+                logger.info("%s copying shared libraries" % lambda_name)
+                shutil.copytree(
+                    src=os.path.join(self.build_env.source_dir, "shared"),
+                    dst=os.path.join(lambda_dir, "shared"),
+                    dirs_exist_ok=True,
+                )
+
             if os.path.exists(requirements_path) and os.path.isfile(requirements_path):
                 logger.info("%s installing Python requirements" % lambda_name)
 
@@ -270,7 +286,7 @@ class RegionalAssetPackager(BaseAssetPackager):
                         "pip",
                         "install",
                         "-t",
-                        lambda_path,
+                        install_path,
                         "-r",
                         requirements_path,
                         "--no-color",

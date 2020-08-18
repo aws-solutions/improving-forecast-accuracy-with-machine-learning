@@ -16,9 +16,13 @@ from datetime import datetime, timezone
 import boto3
 import pytest
 from botocore.stub import Stubber
-from moto import mock_sts
+from moto import mock_sts, mock_s3
 
 from shared.Dataset.dataset_file import DatasetFile
+from shared.DatasetGroup.dataset_group import (
+    LATEST_DATASET_UPDATE_FILENAME_TAG,
+    LATEST_DATASET_UPDATE_FILE_ETAG_TAG,
+)
 from shared.config import Config
 from shared.status import Status
 
@@ -110,129 +114,136 @@ def test_predictor_history(forecast_stub, configuration_data):
     assert history[1].get("CreationTime") == datetime(2015, 1, 1)
 
 
-@mock_sts
-def test_can_update(forecast_stub, configuration_data, expected_dataset_arns):
-    config = Config()
-    config.config = configuration_data
+@pytest.fixture
+def mocked_predictor(configuration_data):
+    bucket_name = "some_bucket"
+    key = "train/RetailDemandTNPTS.csv"
+    with mock_sts():
+        with mock_s3():
+            cli = boto3.client("s3", region_name="us-east-1")
+            cli.create_bucket(Bucket=bucket_name)
+            cli.put_object(
+                Bucket=bucket_name, Key=key, Body=f"some-contents",
+            )
 
-    dataset_file = DatasetFile("RetailDemandTNPTS.csv", "some_bucket")
-    predictor = config.predictor(dataset_file)
+            config = Config()
+            config.config = configuration_data
+            dataset_file = DatasetFile(key, bucket_name)
+            predictor = config.predictor(dataset_file)
+            yield predictor
 
-    predictor.cli = forecast_stub.client
-    forecast_stub.add_response(
-        "describe_dataset_group", {"DatasetArns": expected_dataset_arns}
+
+def test_predictor_status(mocked_predictor, mocker):
+    def service_tags(*args):
+        if args[1] == LATEST_DATASET_UPDATE_FILENAME_TAG:
+            return "RetailDemandTNPTS.csv"
+        if args[1] == LATEST_DATASET_UPDATE_FILE_ETAG_TAG:
+            return "0b9791ad102b5f5f06ef68cef2aae26e"
+
+    mocked_predictor.get_service_tag_for_arn = mocker.MagicMock()
+    mocked_predictor.get_service_tag_for_arn.side_effect = service_tags
+
+    mocked_predictor._dataset_group.ensure_ready = mocker.MagicMock()
+    mocked_predictor.history = mocker.MagicMock()
+    mocked_predictor.history.return_value = []
+
+    assert mocked_predictor.status == Status.DOES_NOT_EXIST
+
+
+def test_predictor_status_last_failed(mocked_predictor, mocker):
+    def service_tags(*args):
+        if args[1] == LATEST_DATASET_UPDATE_FILENAME_TAG:
+            return "RetailDemandTNPTS.csv"
+        if args[1] == LATEST_DATASET_UPDATE_FILE_ETAG_TAG:
+            return "0b9791ad102b5f5f06ef68cef2aae26e"
+
+    mocked_predictor.get_service_tag_for_arn = mocker.MagicMock()
+    mocked_predictor.get_service_tag_for_arn.side_effect = service_tags
+
+    mocked_predictor._dataset_group.ensure_ready = mocker.MagicMock()
+    mocked_predictor.history = mocker.MagicMock()
+    mocked_predictor.history.return_value = [{"PredictorArn": "mocked"}]
+    mocked_predictor.cli.describe_predictor = mocker.MagicMock()
+    mocked_predictor.cli.describe_predictor.return_value = {
+        "Status": str(Status.CREATE_FAILED)
+    }
+
+    assert mocked_predictor.status == Status.DOES_NOT_EXIST
+
+
+def test_predictor_status_last_failed(mocked_predictor, mocker):
+    def service_tags(*args):
+        if args[1] == LATEST_DATASET_UPDATE_FILENAME_TAG:
+            return "RetailDemandTNPTS.csv"
+        if args[1] == LATEST_DATASET_UPDATE_FILE_ETAG_TAG:
+            return "0b9791ad102b5f5f06ef68cef2aae26e"
+
+    mocked_predictor.get_service_tag_for_arn = mocker.MagicMock()
+    mocked_predictor.get_service_tag_for_arn.side_effect = service_tags
+
+    mocked_predictor._dataset_group.ensure_ready = mocker.MagicMock()
+    mocked_predictor.history = mocker.MagicMock()
+    mocked_predictor.history.return_value = [{"PredictorArn": "mocked"}]
+    mocked_predictor.cli.describe_predictor = mocker.MagicMock()
+    mocked_predictor.cli.describe_predictor.return_value = {
+        "Status": str(Status.ACTIVE),
+        "CreationTime": datetime(2015, 1, 1, tzinfo=timezone.utc),
+    }
+
+    assert mocked_predictor.status == Status.DOES_NOT_EXIST
+
+
+def test_predictor_aged_out(mocked_predictor, mocker):
+    def service_tags(*args):
+        if args[1] == LATEST_DATASET_UPDATE_FILENAME_TAG:
+            return "RetailDemandTNPTS.csv"
+        if args[1] == LATEST_DATASET_UPDATE_FILE_ETAG_TAG:
+            return "0b9791ad102b5f5f06ef68cef2aae26e"
+
+    mocked_predictor.get_service_tag_for_arn = mocker.MagicMock()
+    mocked_predictor.get_service_tag_for_arn.side_effect = service_tags
+
+    mocked_predictor._dataset_group.ensure_ready = mocker.MagicMock()
+    mocked_predictor.history = mocker.MagicMock()
+    mocked_predictor.history.return_value = [{"PredictorArn": "mocked"}]
+    mocked_predictor.cli.describe_predictor = mocker.MagicMock()
+    mocked_predictor.cli.describe_predictor.return_value = {
+        "Status": str(Status.ACTIVE),
+        "CreationTime": datetime(2015, 1, 1, tzinfo=timezone.utc),
+    }
+
+    assert mocked_predictor.status == Status.DOES_NOT_EXIST
+
+
+def test_predictor_active(mocked_predictor, mocker):
+    def service_tags(*args):
+        if args[1] == LATEST_DATASET_UPDATE_FILENAME_TAG:
+            return "RetailDemandTNPTS.csv"
+        if args[1] == LATEST_DATASET_UPDATE_FILE_ETAG_TAG:
+            return "0b9791ad102b5f5f06ef68cef2aae26e"
+
+    mocked_predictor.get_service_tag_for_arn = mocker.MagicMock()
+    mocked_predictor.get_service_tag_for_arn.side_effect = service_tags
+
+    mocked_predictor._dataset_group.ensure_ready = mocker.MagicMock()
+    mocked_predictor.history = mocker.MagicMock()
+    mocked_predictor.history.return_value = [{"PredictorArn": "mocked"}]
+    mocked_predictor.cli.describe_predictor = mocker.MagicMock()
+    mocked_predictor.cli.describe_predictor.return_value = {
+        "Status": str(Status.ACTIVE),
+        "CreationTime": datetime.now(timezone.utc),
+    }
+
+    assert mocked_predictor.status == Status.ACTIVE
+
+
+def test_predictor_create_valid(mocked_predictor, mocker):
+    mocked_predictor.cli = mocker.MagicMock()
+    mocked_predictor.cli.exceptions = mocker.MagicMock()
+    mocked_predictor._dataset_group = mocker.MagicMock()
+    mocked_predictor._dataset_group.latest_timestamp.return_value = (
+        "2015_01_01_00_00_00"
     )
-    for arn in expected_dataset_arns:
-        forecast_stub.add_response("describe_dataset", {"Status": "ACTIVE"})
 
-    assert predictor.can_update
-
-
-@mock_sts
-def test_cant_update(forecast_stub, configuration_data, expected_dataset_arns):
-    config = Config()
-    config.config = configuration_data
-
-    dataset_file = DatasetFile("RetailDemandTNPTS.csv", "some_bucket")
-    predictor = config.predictor(dataset_file)
-
-    predictor.cli = forecast_stub.client
-    forecast_stub.add_response(
-        "describe_dataset_group", {"DatasetArns": expected_dataset_arns}
-    )
-    for arn in expected_dataset_arns:
-        forecast_stub.add_response("describe_dataset", {"Status": "CREATE_PENDING"})
-
-    with pytest.raises(ValueError):
-        predictor.can_update
-
-
-@mock_sts
-def test_status_not_yet_created(
-    forecast_stub, configuration_data, expected_dataset_arns
-):
-    config = Config()
-    config.config = configuration_data
-
-    dataset_file = DatasetFile("RetailDemandTNPTS.csv", "some_bucket")
-    predictor = config.predictor(dataset_file)
-
-    predictor.cli = forecast_stub.client
-    forecast_stub.add_response("list_predictors", {"Predictors": []})
-    forecast_stub.add_response(
-        "describe_dataset_group", {"DatasetArns": expected_dataset_arns}
-    )
-    for arn in expected_dataset_arns:
-        forecast_stub.add_response(
-            "describe_dataset", {"Status": "ACTIVE", "DatasetArn": arn}
-        )
-
-    assert predictor.status == Status.DOES_NOT_EXIST
-    forecast_stub.assert_no_pending_responses()
-
-
-@mock_sts
-def test_status_aged_out(forecast_stub, configuration_data, expected_dataset_arns):
-    config = Config()
-    config.config = configuration_data
-
-    dataset_file = DatasetFile("RetailDemandTNPTS.csv", "some_bucket")
-    predictor = config.predictor(dataset_file)
-
-    predictor.cli = forecast_stub.client
-    forecast_stub.add_response(
-        "list_predictors",
-        {
-            "Predictors": [
-                {
-                    "PredictorArn": "arn:",
-                    "CreationTime": datetime(2015, 1, 1, tzinfo=timezone.utc),
-                }
-            ]
-        },
-    )
-    forecast_stub.add_response(
-        "describe_dataset_group", {"DatasetArns": expected_dataset_arns}
-    )
-    for arn in expected_dataset_arns:
-        forecast_stub.add_response(
-            "describe_dataset", {"Status": "ACTIVE", "DatasetArn": arn}
-        )
-    forecast_stub.add_response(
-        "describe_predictor",
-        {"CreationTime": datetime(2015, 1, 1, tzinfo=timezone.utc), "Status": "ACTIVE"},
-    )
-
-    assert predictor.status == Status.DOES_NOT_EXIST
-
-
-@mock_sts
-def test_status_still_good(forecast_stub, configuration_data, expected_dataset_arns):
-    config = Config()
-    config.config = configuration_data
-
-    dataset_file = DatasetFile("RetailDemandTNPTS.csv", "some_bucket")
-    predictor = config.predictor(dataset_file)
-
-    predictor.cli = forecast_stub.client
-    forecast_stub.add_response(
-        "list_predictors",
-        {
-            "Predictors": [
-                {"PredictorArn": "arn:", "CreationTime": datetime.now(timezone.utc)}
-            ]
-        },
-    )
-    forecast_stub.add_response(
-        "describe_dataset_group", {"DatasetArns": expected_dataset_arns}
-    )
-    for arn in expected_dataset_arns:
-        forecast_stub.add_response(
-            "describe_dataset", {"Status": "ACTIVE", "DatasetArn": arn}
-        )
-    forecast_stub.add_response(
-        "describe_predictor",
-        {"CreationTime": datetime.now(timezone.utc), "Status": "ACTIVE"},
-    )
-
-    assert predictor.status == Status.ACTIVE
+    mocked_predictor.create()
+    assert mocked_predictor.cli.create_predictor.called_once

@@ -45,6 +45,10 @@ class EnvironmentVariableError(Exception):
     pass
 
 
+class DatasetsImporting(Exception):
+    pass
+
+
 def step_function_step(f):
     """
     Used to wrap AWS Lambda Functions that produce an AWS Forecast resource status.
@@ -54,16 +58,19 @@ def step_function_step(f):
 
     @wraps(f)
     def wrapper(event, context):
-        (status, output) = f(event, context)
-
-        if status.failed:
-            raise ResourceFailed
-        elif status.updating:
+        try:
+            (status, output) = f(event, context)
+        except get_forecast_client().exceptions.ResourceInUseException:
             raise ResourcePending
-        elif status.finalized:
-            return output
         else:
-            raise ResourceInvalid(f"This should not happen: Status is {status}")
+            if status.failed:
+                raise ResourceFailed
+            elif status.updating:
+                raise ResourcePending
+            elif status.finalized:
+                return output
+            else:
+                raise ResourceInvalid(f"This should not happen: Status is {status}")
 
     return wrapper
 
@@ -167,6 +174,8 @@ def camel_to_snake(s):
 class ForecastClient:
     """Validate a resource from Amazon Forecast against its resource model"""
 
+    _tags = {}
+
     def __init__(self, resource, **resource_creation_kwargs):
         self.account_id = get_account_id()
         self.region = get_aws_region()
@@ -175,6 +184,25 @@ class ForecastClient:
         self.validator = InputValidator(
             f"create_{self.resource}", **resource_creation_kwargs
         )
+        self.add_tag("SolutionId", "SOL0123")
+
+    def add_tag(self, name: str, value: str):
+        """
+        Add a tag to the list of tags that this resource should have
+        :param name: The name of the tag
+        :param value: The value of the tag
+        :return: None
+        """
+        self._tags[name] = value
+
+    @property
+    def tags(self):
+        return [{"Key": tag, "Value": self._tags.get(tag)} for tag in self._tags]
+
+    def get_service_tag_for_arn(self, arn, name, default=None):
+        response = self.cli.list_tags_for_resource(ResourceArn=arn)
+        tags = {tag.get("Key"): tag.get("Value") for tag in response.get("Tags")}
+        return tags.get(name, default)
 
     @classmethod
     def validate_config(cls, **resource_creation_kwargs):

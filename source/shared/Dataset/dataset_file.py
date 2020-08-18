@@ -12,11 +12,15 @@
 # #####################################################################################################################
 
 import json
+from datetime import datetime
 from functools import cached_property
 from os.path import split
 
 from shared.Dataset.dataset_type import DatasetType
 from shared.helpers import get_s3_client
+from shared.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class DatasetFile:
@@ -51,6 +55,21 @@ class DatasetFile:
         """The prefix of the dataset (not including _related or _metadata for those dataset types)"""
         prefix = next(iter(self.filename.split(".")))
         return prefix
+
+    @cached_property
+    def last_updated(self) -> datetime:
+        obj_info = self.cli.get_object(Bucket=self.bucket, Key=self.key)
+        return obj_info.get("LastModified")
+
+    @cached_property
+    def etag(self) -> str:
+        """
+        Get the entity tag (ETag) of the object in S3.
+        :return:
+        """
+        obj_info = self.cli.head_object(Bucket=self.bucket, Key=self.key)
+        tag = obj_info.get("ETag").strip('"')
+        return tag
 
     @cached_property
     def size(self) -> int:

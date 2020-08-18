@@ -15,6 +15,7 @@ import json
 import os
 
 from shared.Dataset.dataset_file import DatasetFile
+from shared.Dataset.dataset_type import DatasetType
 from shared.helpers import get_sns_client
 from shared.logging import get_logger
 
@@ -27,6 +28,16 @@ def topic_arn():
     :return: The SNS topic ARN
     """
     return os.environ["SNS_TOPIC_ARN"]
+
+
+def prepare_forecast_ready_message(file: DatasetFile):
+    """
+    Prepare a message to notify users that forecasts are ready.
+    :param file: the DatasetFile that was updated to trigger this message
+    :return: message or none
+    """
+    message = f"Forecast for {file.prefix} is ready!"
+    return message
 
 
 def build_message(event):
@@ -57,11 +68,15 @@ def build_message(event):
         stack_trace = error_cause.get("stackTrace")
 
         message += f"Message: {error_message}\n\n"
-        message += f"Details: (caught {error_type})\n\n"
-        if stack_trace:
-            message += f"\n".join(stack_trace)
+        if error_type == "DatasetsImporting":
+            message = f"Update for forecast {file.prefix}\n\n"
+            message += error_message
+        else:
+            message += f"Details: (caught {error_type})\n\n"
+            if stack_trace:
+                message += f"\n".join(stack_trace)
     else:
-        message = f"Forecast for {file.prefix} is ready!"
+        message = prepare_forecast_ready_message(file)
 
     return message
 
@@ -75,8 +90,12 @@ def sns(event, context):
     """
     cli = get_sns_client()
 
-    logger.info("Publishing message for event: %s" % event)
-    cli.publish(TopicArn=topic_arn(), Message=build_message(event))
+    message = build_message(event)
+    if message:
+        logger.info("Publishing message for event: %s" % event)
+        cli.publish(TopicArn=topic_arn(), Message=message)
+    else:
+        logger.info("No message to publish for event: %s" % event)
 
 
 def sns_conditional(event, context):

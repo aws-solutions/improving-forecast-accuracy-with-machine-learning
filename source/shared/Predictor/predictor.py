@@ -13,13 +13,29 @@
 
 from datetime import datetime, timezone, timedelta
 from operator import itemgetter
+from typing import Union
 
 from shared.Dataset.dataset_file import DatasetFile
-from shared.DatasetGroup.dataset_group import DatasetGroup
+from shared.DatasetGroup.dataset_group import (
+    DatasetGroup,
+    LATEST_DATASET_UPDATE_FILENAME_TAG,
+    LATEST_DATASET_UPDATE_FILE_ETAG_TAG,
+)
 from shared.helpers import ForecastClient
+from shared.logging import get_logger
 from shared.status import Status
 
 MAX_AGE = 604800  # one week in seconds
+logger = get_logger(__name__)
+
+
+class NotMostRecentUpdate(Exception):
+    """
+    This is raised when a predictor status is requested for a run in an execution that was not triggered by the most
+    recent file update.
+    """
+
+    pass
 
 
 class Predictor(ForecastClient):
@@ -39,7 +55,7 @@ class Predictor(ForecastClient):
         super().__init__(resource="predictor", **self._predictor_params)
 
     @property
-    def arn(self) -> str:
+    def arn(self) -> Union[str, None]:
         """Get the ARN of this resource
         :return: The ARN of this resource if it exists, otherwise None
         """
@@ -78,44 +94,48 @@ class Predictor(ForecastClient):
         return past_predictors
 
     @property
-    def can_update(self) -> bool:
-        """
-        Check if a predictor can update. Predictors can update if all of their Datasets have Status ACTIVE
-        :return: true if the predictor can update, otherwise false
-        """
-        dataset_group = self.cli.describe_dataset_group(
-            DatasetGroupArn=self._dataset_group.arn
-        )
-
-        datasets = [
-            self.cli.describe_dataset(DatasetArn=arn)
-            for arn in dataset_group.get("DatasetArns")
-        ]
-
-        datasets_ready = all(dataset.get("Status") == "ACTIVE" for dataset in datasets)
-        if not datasets_ready:
-            raise ValueError(
-                f"One or more of the datasets for dataset group {dataset_group.get('DatasetGroupName')} are not ACTIVE"
-            )
-
-        return datasets_ready
-
-    @property
     def status(self) -> Status:
         """
         Get the status of the predictor as defined. The status might be DOES_NOT_EXIST if a predictor of the desired
         format does not yet exist, or a predictor needs to be regenerated.
         :return: Status
         """
-        past_predictors = self.history()
+
+        # this ensures that only the last file uploaded will trigger predictor generation
+        last_updated_file = self.get_service_tag_for_arn(
+            self._dataset_group.arn, LATEST_DATASET_UPDATE_FILENAME_TAG
+        )
+        last_updated_etag = self.get_service_tag_for_arn(
+            self._dataset_group.arn, LATEST_DATASET_UPDATE_FILE_ETAG_TAG
+        )
+        logger.debug(
+            "last updated file was %s with ETag %s"
+            % (last_updated_file, last_updated_etag)
+        )
+        if (
+            self._dataset_file.filename == last_updated_file
+            and self._dataset_file.etag == last_updated_etag
+        ):
+            logger.info(
+                "this state machine execution can continue through predictor and forecast creation"
+            )
+        else:
+            logger.info(
+                "this state machine execution cannot continue through predictor and forecast creation"
+            )
+            raise NotMostRecentUpdate
+
+        # check if we can actually update (dataset group is ready)
+        # this raises exception DatasetsImporting if one or more datasets is importing
+        self._dataset_group.ensure_ready()
 
         # check if a predictor has been created
-        if not past_predictors and self.can_update:
+        past_predictors = self.history()
+        if not past_predictors:
+            logger.debug("No past predictors found")
             return Status.DOES_NOT_EXIST
 
-        # raises an exception if we can't update
-        self.can_update
-
+        logger.debug("predictor can update")
         past_status = self.cli.describe_predictor(
             PredictorArn=past_predictors[0].get("PredictorArn")
         )
@@ -123,6 +143,9 @@ class Predictor(ForecastClient):
         # regenerate the predictor if our past status was failed - this allows for the user to replace
         # a dataset with errors with a new dataset, and a new predictor to be generated.
         if Status[past_status.get("Status")].failed:
+            logger.info(
+                "a last predictor failed to create - will attempt to create again"
+            )
             return Status.DOES_NOT_EXIST
 
         # regenerate the predictor if our predictor has aged out and we have new data
@@ -133,10 +156,14 @@ class Predictor(ForecastClient):
         max_age_d = now - timedelta(seconds=max_age_s)
 
         if last_modified < max_age_d:
+            logger.info(
+                "predictor has surpassed max age - will attempt to create again"
+            )
             return Status.DOES_NOT_EXIST
 
         # otherwise, return the actual status of the most recent predictor -
         # we do not have to regenerate it
+        logger.info("predictor status is %s" % past_status.get("Status"))
         return Status[past_status.get("Status")]
 
     def create(self):
@@ -145,8 +172,24 @@ class Predictor(ForecastClient):
         :return: None
         """
         dataset_group_name = self._dataset_group.dataset_group_name
-        now = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        latest_dataset_update = self._dataset_group.latest_timestamp
+        predictor_name = f"{dataset_group_name}_{latest_dataset_update}"
 
-        self._predictor_params["PredictorName"] = f"{dataset_group_name}_{now}"
+        self._predictor_params["PredictorName"] = predictor_name
+        self._predictor_params["Tags"] = self.tags
 
-        self.cli.create_predictor(**self._predictor_params)
+        try:
+            self.cli.create_predictor(**self._predictor_params)
+        except self.cli.exceptions.ResourceAlreadyExistsException:
+            logger.debug("Predictor %s is already creating" % predictor_name)
+
+    @property
+    def latest_timestamp(self, format="%Y_%m_%d_%H_%M_%S"):
+        past_predictors = self.history()
+        latest_predictor_modified = max(
+            [predictor.get("LastModificationTime") for predictor in past_predictors]
+        )
+        if format:
+            return latest_predictor_modified.strftime(format)
+        else:
+            return latest_predictor_modified

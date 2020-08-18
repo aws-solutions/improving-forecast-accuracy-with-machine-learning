@@ -1,9 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
 
-  (SO0123) Workflow Automation for Amazon Forecast %%VERSION%% - This solution provides a
-  mechanism to automate Amazon Forecast predictor and forecast generation and visualize
-  it via an Amazon SageMaker Jupyter Notebook
+  (SO0123) Improving Forecast Accuracy with Machine Learning %%VERSION%% - This solution
+  provides a mechanism to automate Amazon Forecast predictor and forecast generation and
+  visualize it via an Amazon SageMaker Jupyter Notebook
 
 Parameters:
   Email:
@@ -325,6 +325,8 @@ Resources:
       Code:
         S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "notification.zip"]]
+      Layers:
+        - !Ref LayerDependencies
       Handler: handler.notification
       Runtime: python3.8
       Timeout: 300
@@ -338,7 +340,7 @@ Resources:
   NotificationTopic:
     Type: AWS::SNS::Topic
     Properties:
-      DisplayName: Workflow Automation for Amazon Forecast
+      DisplayName: Improving Forecast Accuracy with Machine Learning Notifications
       KmsMasterKeyId: alias/aws/sns
 
   NotificationSubscription:
@@ -350,6 +352,17 @@ Resources:
       Protocol: email
 
   # --------- Lambdas ---------
+  LayerDependencies:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Description: Shared dependencies for all AWS Lambda functions packaged into a layer
+      LayerName: !Sub "${AWS::StackName}-LayerDependencies-${RedeployLambdas.Id}"
+      CompatibleRuntimes:
+        - python3.8
+      Content:
+        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "lambda_dependencies.zip"]]
+
   CreateDataset:
     Type: AWS::Lambda::Function
     Properties:
@@ -357,6 +370,8 @@ Resources:
       Code:
         S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "createdataset.zip"]]
+      Layers:
+        - !Ref LayerDependencies
       Handler: handler.createdataset
       Runtime: python3.8
       Role: !GetAtt LambdaForecastRole.Arn
@@ -372,6 +387,8 @@ Resources:
       Code:
         S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "createdatasetgroup.zip"]]
+      Layers:
+        - !Ref LayerDependencies
       Handler: handler.createdatasetgroup
       Runtime: python3.8
       Timeout: 300
@@ -387,6 +404,8 @@ Resources:
       Code:
         S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "createdatasetimportjob.zip"]]
+      Layers:
+        - !Ref LayerDependencies
       Handler: handler.createdatasetimportjob
       Runtime: python3.8
       Timeout: 300
@@ -403,6 +422,8 @@ Resources:
       Code:
         S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "createpredictor.zip"]]
+      Layers:
+        - !Ref LayerDependencies
       Handler: handler.createpredictor
       Runtime: python3.8
       Timeout: 300
@@ -418,6 +439,8 @@ Resources:
       Code:
         S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "createforecast.zip"]]
+      Layers:
+        - !Ref LayerDependencies
       Handler: handler.createforecast
       Runtime: python3.8
       Timeout: 300
@@ -434,6 +457,8 @@ Resources:
       Code:
         S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "sns.zip"]]
+      Layers:
+        - !Ref LayerDependencies
       Handler: handler.sns
       Runtime: python3.8
       Timeout: 300
@@ -450,6 +475,8 @@ Resources:
       Code:
         S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "sns.zip"]]
+      Layers:
+        - !Ref LayerDependencies
       Handler: handler.sns_conditional
       Runtime: python3.8
       Timeout: 300
@@ -634,6 +661,7 @@ Resources:
                   - forecast:List*
                   - forecast:Create*
                   - forecast:Update*
+                  - forecast:TagResource
                 Resource: "*"
         - PolicyName: LoggingPolicy
           PolicyDocument:
@@ -738,7 +766,7 @@ Resources:
                   "Resource": "${CreateDatasetGroupArn}",
                   "ResultPath": "$.DatasetGroupArn",
                   "Retry": [{
-                    "ErrorEquals": ["ResourcePending"],
+                    "ErrorEquals": ["ResourcePending", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
                     "IntervalSeconds": 5,
                     "BackoffRate": 1.05
                   }],
@@ -758,9 +786,10 @@ Resources:
                   "Resource": "${CreateDatasetArn}",
                   "ResultPath": "$.DatasetArn",
                   "Retry": [{
-                    "ErrorEquals": ["ResourcePending"],
+                    "ErrorEquals": ["ResourcePending", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
                     "IntervalSeconds": 5,
-                    "BackoffRate": 1.05
+                    "BackoffRate": 1.05,
+                    "MaxAttempts": 100
                   }],
                   "Catch": [{
                     "ErrorEquals": ["ResourceFailed"],
@@ -778,7 +807,7 @@ Resources:
                   "Resource": "${ImportDataArn}",
                   "ResultPath": "$.DatasetImportJobArn",
                   "Retry": [{
-                    "ErrorEquals": ["ResourcePending"],
+                    "ErrorEquals": ["ResourcePending", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
                     "IntervalSeconds": 5,
                     "BackoffRate": 1.05,
                     "MaxAttempts": 100
@@ -799,7 +828,7 @@ Resources:
                   "Resource": "${CreatePredictorArn}",
                   "ResultPath": "$.PredictorArn",
                   "Retry": [{
-                    "ErrorEquals": ["ResourcePending"],
+                    "ErrorEquals": ["DatasetsImporting", "ResourcePending", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
                     "IntervalSeconds": 5,
                     "BackoffRate": 1.05,
                     "MaxAttempts": 100
@@ -809,18 +838,24 @@ Resources:
                     "ResultPath": "$.serviceError",
                     "Next": "Notify-Failed"
                   }, {
+                    "ErrorEquals": ["NotMostRecentUpdate"],
+                    "Next": "Update-Not-Required"
+                  }, {
                     "ErrorEquals": ["States.ALL"],
                     "ResultPath": "$.statesError",
                     "Next": "Notify-Failed"
                   }],
                   "Next": "Create-Forecast"
                 },
+                "Update-Not-Required": {
+                  "Type": "Succeed"
+                },
                 "Create-Forecast": {
                   "Type": "Task",
                   "Resource": "${CreateForecastArn}",
                   "ResultPath": "$.ForecastArn",
                   "Retry": [{
-                    "ErrorEquals": ["ResourcePending"],
+                    "ErrorEquals": ["ResourcePending", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
                     "IntervalSeconds": 5,
                     "BackoffRate": 1.05,
                     "MaxAttempts": 100

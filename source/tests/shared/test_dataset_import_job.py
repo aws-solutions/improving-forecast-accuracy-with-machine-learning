@@ -64,6 +64,7 @@ def test_dataset_import_job_status_lifecycle(configuration_data, forecast_stub, 
         "describe_dataset_import_job",
         {"Status": "ACTIVE", "FieldStatistics": {"item_id": {"Count": size}}},
     )
+    forecast_stub.add_response("list_tags_for_resource", {"Tags": []})
     forecast_stub.add_response(
         "list_dataset_import_jobs",
         {
@@ -87,6 +88,7 @@ def test_dataset_import_job_status_lifecycle(configuration_data, forecast_stub, 
         "describe_dataset_import_job",
         {"Status": "ACTIVE", "FieldStatistics": {"item_id": {"Count": size + 1}}},
     )
+    forecast_stub.add_response("list_tags_for_resource", {"Tags": []})
 
     dataset_import_job.cli = forecast_stub.client
     mocker.patch(

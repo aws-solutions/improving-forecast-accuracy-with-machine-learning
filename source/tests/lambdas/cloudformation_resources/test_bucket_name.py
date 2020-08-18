@@ -13,6 +13,7 @@
 
 
 import pytest
+
 from lambdas.cloudformation_resources.bucket_name import (
     get_property,
     generate_name,

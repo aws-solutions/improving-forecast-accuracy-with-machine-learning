@@ -11,6 +11,7 @@
 #  and limitations under the License.                                                                                 #
 # #####################################################################################################################
 
+from copy import deepcopy
 from datetime import datetime
 
 import boto3
@@ -98,19 +99,28 @@ def test_dataset_create_noop_errors(configuration_data, forecast_stub):
     dataset = config.dataset(dataset_file)
     configured_dataset = configuration_data.get("RetailDemandTRM").get("Datasets")[2]
 
-    for i in range(0, 2):
-        forecast_stub.add_response(
-            "describe_dataset",
-            {
-                "DatasetType": configured_dataset.get("DatasetType"),
-                "DatasetName": "RetailDemandTRM",
-                "Domain": configured_dataset.get("Domain"),
-                "Schema": configured_dataset.get("Schema"),
-                "DataFrequency": configured_dataset.get("DataFrequency"),
-            },
-        )
+    params = {
+        "DatasetType": configured_dataset.get("DatasetType"),
+        "DatasetName": "RetailDemandTRM",
+        "Domain": configured_dataset.get("Domain"),
+        "Schema": configured_dataset.get("Schema"),
+        "DataFrequency": configured_dataset.get("DataFrequency"),
+    }
+    create_params = deepcopy(params)
+    create_params["Tags"] = [{"Key": "SolutionId", "Value": "SOL0123"}]
 
-    # should not call anything
+    forecast_stub.add_response(
+        "describe_dataset", params,
+    )
+
+    forecast_stub.add_response(
+        "create_dataset", {"DatasetArn": dataset.arn}, create_params
+    )
+
+    forecast_stub.add_response(
+        "describe_dataset", params,
+    )
+
     dataset.cli = forecast_stub.client
     dataset.create()
 

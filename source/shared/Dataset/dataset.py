@@ -20,7 +20,10 @@ from shared.Dataset.dataset_domain import DatasetDomain
 from shared.Dataset.dataset_name import DatasetName
 from shared.Dataset.dataset_type import DatasetType
 from shared.helpers import ForecastClient
+from shared.logging import get_logger
 from shared.status import Status
+
+logger = get_logger(__name__)
 
 
 class Dataset(ForecastClient):
@@ -169,4 +172,8 @@ class Dataset(ForecastClient):
             if ex.response["Error"]["Code"] != "ResourceNotFoundException":
                 raise ex
 
+        try:
+            self._params["Tags"] = self.tags
             self.cli.create_dataset(**self._params)
+        except self.cli.exceptions.ResourceAlreadyExistsException:
+            logger.debug("Dataset %s is already creating" % str(self._dataset_name))

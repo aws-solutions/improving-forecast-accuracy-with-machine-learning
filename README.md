@@ -92,12 +92,6 @@ aws s3 sync ./regional-s3-assets s3://$DIST_OUTPUT_BUCKET-us-east-1/$SOLUTION_NA
 
 ### Known issues
 
-- Occasionally, when uploading multiple datasets (or replacing the same dataset) for a new dataset group, that dataset 
-group will fail to create successfully. If this occurs, you should receive an email containing an error 
-“ResourceAlreadyExistsException” and the state machine will fail. To work around this issue, either upload the failing 
-dataset again, or re-run the failed state machine execution by selecting the failed execution in the AWS Step Functions
-console, and clicking “New execution,” keeping the input as is.
-
 ***
 
 Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.

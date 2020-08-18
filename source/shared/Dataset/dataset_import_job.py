@@ -11,14 +11,16 @@
 #  and limitations under the License.                                                                                 #
 # #####################################################################################################################
 
-from datetime import datetime
 from operator import itemgetter
 from os import environ
 
 from shared.Dataset.data_timestamp_format import DataTimestampFormat
 from shared.Dataset.dataset_file import DatasetFile
 from shared.helpers import ForecastClient
+from shared.logging import get_logger
 from shared.status import Status
+
+logger = get_logger(__name__)
 
 
 class DatasetImportJob(ForecastClient):
@@ -30,10 +32,9 @@ class DatasetImportJob(ForecastClient):
         dataset_arn: str,
         timestamp_format: DataTimestampFormat,
     ):
-        self.dataset_file = dataset_file
         self.dataset_arn = dataset_arn
         self.timestamp_format = timestamp_format
-
+        self.dataset_file = dataset_file
         self._import_job_params = {
             "DatasetImportJobName": "PLACEHOLDER",
             "DatasetArn": self.dataset_arn,
@@ -95,15 +96,22 @@ class DatasetImportJob(ForecastClient):
             return Status.DOES_NOT_EXIST
 
         # check if the data is outdated
+        last_import_arn = previous_imports[0].get("DatasetImportJobArn")
         previous_status = self.cli.describe_dataset_import_job(
-            DatasetImportJobArn=previous_imports[0].get("DatasetImportJobArn")
+            DatasetImportJobArn=last_import_arn
         )
 
         # if the data is active, check if it should be updated
         if previous_status.get("Status") == Status.ACTIVE:
+            past_etag = self.get_service_tag_for_arn(last_import_arn, "SolutionETag")
+            if past_etag and past_etag != self.dataset_file.etag:
+                logger.info("Dataset update detected (ETag does not match)")
+                return Status.DOES_NOT_EXIST
+
             stats = previous_status.get("FieldStatistics")
             counts = [stats[item].get("Count") for item in stats]
             if self.dataset_file.size not in counts:
+                logger.info("Dataset update detected (File line counts do not match)")
                 return Status.DOES_NOT_EXIST
 
         return Status[previous_status.get("Status")]
@@ -114,6 +122,13 @@ class DatasetImportJob(ForecastClient):
         :return: None
         """
         dataset_name = self.dataset_arn.split("/")[-1]
-        now = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-        self._import_job_params["DatasetImportJobName"] = f"{dataset_name}_{now}"
-        self.cli.create_dataset_import_job(**self._import_job_params)
+        now = self.dataset_file.last_updated.strftime("%Y_%m_%d_%H_%M_%S")
+        name = f"{dataset_name}_{now}"
+        self._import_job_params["DatasetImportJobName"] = name
+        self.add_tag("SolutionETag", self.dataset_file.etag)
+        self._import_job_params["Tags"] = self.tags
+
+        try:
+            self.cli.create_dataset_import_job(**self._import_job_params)
+        except self.cli.exceptions.ResourceAlreadyExistsException:
+            logger.debug("Dataset import job %s is already creating" % name)

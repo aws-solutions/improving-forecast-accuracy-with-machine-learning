@@ -15,17 +15,18 @@ This software includes third party software subject to the following copyrights:
 AWS SDK under the Apache License Version 2.0
 boto3 under the Apache License Version 2.0
 black under the Massachusetts Institute of Technology (MIT) license
-crhelper under the Apache License Version 2.0
 click under the BSD 3-Clause license
 coverage under the Apache License Version 2.0
+crhelper under the Apache License Version 2.0
 Jinja2 under the BSD 3-Clause license
+moto under the Apache License Version 2.0
+packaging under the Apache License Version 2.0
 pandas under the BSD 3-Clause license
 pytest under the Massachusetts Institute of Technology (MIT) license
 pytest-cov under the Massachusetts Institute of Technology (MIT) license
 pytest-mock under the Massachusetts Institute of Technology (MIT) license
 pytest-env under the Massachusetts Institute of Technology (MIT) license
 PyYAML under the Massachusetts Institute of Technology (MIT) license
-moto under the Apache License Version 2.0
-packaging under the Apache License Version 2.0
+requests under the Apache License Version 2.0
 
 The Apache License Version Version 2.0 is included in LICENSE.txt.

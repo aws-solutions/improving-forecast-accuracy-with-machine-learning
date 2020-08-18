@@ -34,6 +34,6 @@ def createdatasetgroup(event, context) -> (Status, str):
 
     if dataset_group.status == Status.ACTIVE:
         datasets = config.datasets(dataset_file)
-        dataset_group.update(datasets)
+        dataset_group.update(datasets, dataset_file)
 
     return dataset_group.status, dataset_group.arn

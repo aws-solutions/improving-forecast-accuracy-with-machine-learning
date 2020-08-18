@@ -15,7 +15,6 @@ from uuid import uuid4 as uuid
 
 from crhelper import CfnResource
 
-
 helper = CfnResource(log_level="INFO")
 
 
