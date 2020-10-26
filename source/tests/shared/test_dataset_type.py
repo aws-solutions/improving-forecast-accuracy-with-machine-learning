@@ -41,3 +41,16 @@ def test_dataset_domain_equality():
 def test_str(valid_dataset_types):
     for typ in valid_dataset_types:
         assert str(DatasetType[typ]) == typ
+
+
+@pytest.mark.parametrize(
+    "dataset_type_str,suffix",
+    [
+        ("TARGET_TIME_SERIES", ".csv"),
+        ("RELATED_TIME_SERIES", ".related.csv"),
+        ("ITEM_METADATA", ".metadata.csv"),
+    ],
+)
+def test_suffix(dataset_type_str, suffix):
+    typ = DatasetType[dataset_type_str]
+    assert typ.suffix == suffix

@@ -146,6 +146,7 @@ def test_restart_notebook_server(lifecycle_config, mocker, caplog):
 
 
 def test_copy_files(s3_valid_config, lifecycle_config, tmpdir):
+    # this test will fail on Windows machines and if the group is not resolvable (networking issues)
     uid = pwd.getpwuid(os.getuid()).pw_name
     gid = grp.getgrgid(os.getgid()).gr_name
 

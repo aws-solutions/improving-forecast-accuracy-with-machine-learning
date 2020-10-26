@@ -305,3 +305,68 @@ def test_config_validation_doesnt_mutate_config(configuration_data):
     config.validate()
 
     assert config.config == config_copy
+
+
+def test_config_validation_bad_dataset_reference(configuration_data):
+    config = Config()
+    config.config = configuration_data
+
+    configuration_data["InvalidReference"] = {
+        "DatasetGroup": {"Domain": "Retail"},
+        "Datasets": {"From": "DoesNotExist"},
+        "Predictor": {
+            "PerformAutoML": True,
+            "ForecastHorizon": 30,
+            "FeaturizationConfig": {"ForecastFrequency": "D"},
+        },
+        "Forecast": {"ForecastTypes": ["0.50"]},
+    }
+
+    errors = config.validate()
+    assert len(errors) == 1
+    assert "no config found for datasets in that group" in errors[0]
+
+
+def test_config_dependent_dataset_groups(configuration_data):
+    config = Config()
+    config.config = configuration_data
+
+    dataset_file = DatasetFile("RetailDemandTRMProphet", "some_bucket")
+
+    dependents = config.dependent_dataset_groups(dataset_file)
+    assert len(dependents) == 2
+    assert "DatasetsFromRetailDemandTRMProphet" in dependents
+
+
+@mock_sts
+def test_config_dependent_dataset_dependencies(configuration_data):
+    config = Config()
+    config.config = configuration_data
+
+    dataset_file = DatasetFile("DatasetsFromRetailDemandTRMProphet", "some_bucket")
+    datasets = config.datasets(dataset_file)
+
+
+@mock_sts
+def test_config_dataset_groups(configuration_data):
+    config = Config()
+    config.config = configuration_data
+
+    dataset_file = DatasetFile("RetailDemandTRMProphet", "some_bucket")
+    dsgs = config.dataset_groups(dataset_file)
+
+    assert len(dsgs) == 2
+
+
+@mock_sts
+def test_config_predictor_from_dependent(configuration_data):
+    config = Config()
+    config.config = configuration_data
+
+    dataset_file = DatasetFile("RetailDemandTRMProphet", "some_bucket")
+
+    predictor = config.predictor(dataset_file, "DatasetsFromRetailDemandTRMProphet")
+    assert (
+        predictor.validator.expected_params["AlgorithmArn"]
+        == "arn:aws:forecast:::algorithm/CNN-QR"
+    )

@@ -15,18 +15,18 @@ from functools import wraps
 from os import environ
 
 import boto3
+from botocore.config import Config
 from botocore.stub import Stubber
 
 from shared.logging import get_logger
 
 logger = get_logger(__name__)
 
+SOLUTION_ID = "SOL0123"
+CLIENT_CONFIG = Config(retries={"max_attempts": 10, "mode": "standard"})
+
 # declaring these global makes initialization/ performance a bit better if generating many forecasts
-helpers_sts_client = None
-helpers_forecast_client = None
-helpers_sns_client = None
-helpers_s3_client = None
-helpers_sfn_client = None
+_helpers_service_clients = dict()
 
 
 class ResourcePending(Exception):
@@ -61,7 +61,17 @@ def step_function_step(f):
         try:
             (status, output) = f(event, context)
         except get_forecast_client().exceptions.ResourceInUseException:
+            logger.info("resource is currently updating")
             raise ResourcePending
+        except get_forecast_client().exceptions.LimitExceededException as limit_exception:  # deal with (retryable) forecast rate limiting
+            if "concurrently" in str(limit_exception):
+                raise ResourcePending
+            elif "dataset import jobs" in str(
+                limit_exception
+            ):  # "Quota limit of \d+ dataset import jobs has been reached"
+                raise ResourcePending
+            else:
+                raise limit_exception  # reraise - user will have to make changes to forecast or file a quota change request ticket
         else:
             if status.failed:
                 raise ResourceFailed
@@ -73,6 +83,60 @@ def step_function_step(f):
                 raise ResourceInvalid(f"This should not happen: Status is {status}")
 
     return wrapper
+
+
+def get_service_client(service_name, config=CLIENT_CONFIG):
+    global _helpers_service_clients
+    if service_name not in _helpers_service_clients:
+        logger.debug(f"Initializing global boto3 client for {service_name}")
+        _helpers_service_clients[service_name] = boto3.client(
+            service_name, config=config, region_name=get_aws_region()
+        )
+    return _helpers_service_clients[service_name]
+
+
+def get_forecast_client():
+    """Get the global forecast boto3 client"""
+    return get_service_client("forecast")
+
+
+def get_sts_client():
+    """Get the global sts boto3 client"""
+    return get_service_client("sts")
+
+
+def get_sns_client():
+    """Get the global sns boto3 client"""
+    return get_service_client("sns")
+
+
+def get_s3_client():
+    """Get the global s3 boto3 client"""
+    return get_service_client("s3")
+
+
+def get_quicksight_client():
+    """Get the global QuickSight boto3 client"""
+    return get_service_client("quicksight")
+
+
+def get_iam_client():
+    """Get the global IAM boto3 client"""
+    return get_service_client("iam")
+
+
+def get_sfn_client():
+    """Get the global step functions boto3 client"""
+    return get_service_client("stepfunctions")
+
+
+def get_aws_account_id():
+    """
+    Get the caller's AWS account ID
+    :return: The AWS account ID
+    """
+    sts_client = get_sts_client()
+    return sts_client.get_caller_identity().get("Account")
 
 
 def get_aws_region():
@@ -87,62 +151,26 @@ def get_aws_region():
     return region
 
 
-def get_account_id():
+def get_aws_partition():
     """
-    Get the caller's AWS account ID
-    :return: The AWS account ID
+    Get the caller's AWS partion by driving it from AWS region
+    :return: partition name for the current AWS region (e.g. aws)
     """
-    global helpers_sts_client
-    if not helpers_sts_client:
-        region = get_aws_region()
-        logger.debug("Initializing boto3 client for sts in %s" % region)
-        helpers_sts_client = boto3.client("sts", region_name=get_aws_region())
+    region_name = environ.get("AWS_REGION")
+    china_region_name_prefix = "cn"
+    us_gov_cloud_region_name_prefix = "us-gov"
+    aws_regions_partition = "aws"
+    aws_china_regions_partition = "aws-cn"
+    aws_us_gov_cloud_regions_partition = "aws-us-gov"
 
-    return helpers_sts_client.get_caller_identity().get("Account")
-
-
-def get_forecast_client():
-    """Get the global forecast boto3 client"""
-    global helpers_forecast_client
-    if not helpers_forecast_client:
-        region = get_aws_region()
-        logger.debug("Initializing boto3 client for forecast in %s" % region)
-        helpers_forecast_client = boto3.client("forecast", region_name=get_aws_region())
-
-    return helpers_forecast_client
-
-
-def get_sns_client():
-    """Get the global sns boto3 client"""
-    global helpers_sns_client
-    if not helpers_sns_client:
-        region = get_aws_region()
-        logger.debug("Initializing boto3 client for sns in %s" % region)
-        helpers_sns_client = boto3.client("sns", region_name=get_aws_region())
-
-    return helpers_sns_client
-
-
-def get_s3_client():
-    """Get the global s3 boto3 client"""
-    global helpers_s3_client
-    if not helpers_s3_client:
-        region = get_aws_region()
-        logger.debug("Initializing boto3 client for s3 in %s" % region)
-        helpers_s3_client = boto3.client("s3", region_name=get_aws_region())
-
-    return helpers_s3_client
-
-
-def get_sfn_client():
-    """Get the global step functions boto3 client"""
-    global helpers_sfn_client
-    if not helpers_sfn_client:
-        region = get_aws_region()
-        logger.debug("Initializing boto3 client for stepfunctions in %s" % region)
-        helpers_sfn_client = boto3.client("stepfunctions", region_name=get_aws_region())
-
-    return helpers_sfn_client
+    # China regions
+    if region_name.startswith(china_region_name_prefix):
+        return aws_china_regions_partition
+    # AWS GovCloud(US) Regions
+    elif region_name.startswith(us_gov_cloud_region_name_prefix):
+        return aws_us_gov_cloud_regions_partition
+    else:
+        return aws_regions_partition
 
 
 class InputValidator:
@@ -177,14 +205,14 @@ class ForecastClient:
     _tags = {}
 
     def __init__(self, resource, **resource_creation_kwargs):
-        self.account_id = get_account_id()
+        self.account_id = get_aws_account_id()
         self.region = get_aws_region()
         self.cli = get_forecast_client()
         self.resource = resource
         self.validator = InputValidator(
             f"create_{self.resource}", **resource_creation_kwargs
         )
-        self.add_tag("SolutionId", "SOL0123")
+        self.add_tag("SolutionId", SOLUTION_ID)
 
     def add_tag(self, name: str, value: str):
         """

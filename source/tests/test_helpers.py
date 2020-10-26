@@ -20,7 +20,7 @@ from moto import mock_sts
 from shared.helpers import (
     step_function_step,
     get_aws_region,
-    get_account_id,
+    get_aws_account_id,
     get_forecast_client,
     get_sns_client,
     ResourceFailed,
@@ -30,6 +30,10 @@ from shared.helpers import (
     get_s3_client,
     get_sfn_client,
     InputValidator,
+    get_quicksight_client,
+    get_iam_client,
+    get_sts_client,
+    get_aws_partition,
 )
 from shared.status import Status
 
@@ -41,6 +45,49 @@ def wrapped_function():
         return (status, "arn:")
 
     return func_to_wrap
+
+
+@pytest.fixture
+def wrapped_function_exception():
+    @step_function_step
+    def func_to_wrap(exc, context):
+        raise exc
+
+    return func_to_wrap
+
+
+@mock_sts
+@pytest.mark.parametrize(
+    "exc",
+    [
+        "Quota limit of n concurrently creating dataset import jobs has been reached",
+        "Quota limit of n concurrently creating forecasts has been reached",
+        "Quota limit of n concurrently creating forecast exports has been reached",
+        "Quota limit of n dataset import jobs has been reached",
+    ],
+)
+def test_concurrent_limit_exceptions(wrapped_function_exception, exc):
+    exc = get_forecast_client().exceptions.LimitExceededException(
+        {"Error": {"Code": 400, "Message": exc}}, "some_operation"
+    )
+    with pytest.raises(ResourcePending):
+        wrapped_function_exception(exc, None)
+
+
+@mock_sts
+@pytest.mark.parametrize(
+    "exc",
+    [
+        "Quota limit of n of total number of forecast exports has been reached",
+        "Quota limit of n GB data size has been reached",
+    ],
+)
+def test_not_concurrent_limit_exceptions(wrapped_function_exception, exc):
+    exc = get_forecast_client().exceptions.LimitExceededException(
+        {"Error": {"Code": 600, "Message": exc}}, "some_operation"
+    )
+    with pytest.raises(type(exc)):
+        wrapped_function_exception(exc, None)
 
 
 def test_step_function_step_failed(wrapped_function):
@@ -72,29 +119,27 @@ def test_region_missing():
     os.environ["AWS_REGION"] = region
 
 
+@pytest.mark.parametrize(
+    "client,url",
+    [
+        (get_sns_client, "https://sns.us-east-1.amazonaws.com"),
+        (get_forecast_client, "https://forecast.us-east-1.amazonaws.com"),
+        (get_s3_client, "https://s3"),
+        (get_quicksight_client, "https://quicksight"),
+        (get_iam_client, "https://iam"),
+        (get_sfn_client, "https://states.us-east-1.amazonaws.com"),
+        (get_sts_client, "https://sts.amazonaws.com"),
+    ],
+    ids="sns,forecast,s3,quicksight,iam,sfn,sts".split(","),
+)
+def test_client_getters(client, url, monkeypatch):
+    cli = client()
+    assert url in cli.meta.endpoint_url
+
+
 @mock_sts
 def test_with_account_id():
-    assert get_account_id() == "abcdefghijkl"
-
-
-def test_forecast_getter():
-    cli = get_sns_client()
-    assert "https://sns.us-east-1.amazonaws.com" in cli.meta.endpoint_url
-
-
-def test_sns_getter():
-    cli = get_forecast_client()
-    assert "https://forecast.us-east-1.amazonaws.com" in cli.meta.endpoint_url
-
-
-def test_s3_getter():
-    cli = get_s3_client()
-    assert "https://s3" in cli.meta.endpoint_url
-
-
-def test_sfn_getter():
-    cli = get_sfn_client()
-    assert "https://states.us-east-1.amazonaws.com" in cli.meta.endpoint_url
+    assert get_aws_account_id() == "abcdefghijkl"
 
 
 def test_input_validator_invalid():
@@ -109,3 +154,24 @@ def test_input_validator_valid():
     iv = InputValidator(
         "create_dataset_group", Domain="RETAIL", DatasetGroupName="Testing123"
     )
+
+
+def test_aws_partition():
+    region = os.environ.pop("AWS_REGION")
+    with pytest.raises(EnvironmentVariableError):
+        get_aws_region()
+    os.environ["AWS_REGION"] = region
+
+
+def test_cn_partition(monkeypatch):
+    """Set the SECRET env var to assert the behavior."""
+    monkeypatch.setenv("AWS_REGION", "cn-north-1")
+    assert get_aws_region() == "cn-north-1"
+    assert get_aws_partition() == "aws-cn"
+
+
+def test_us_gov_cloud_partition(monkeypatch):
+    """Set the SECRET env var to assert the behavior."""
+    monkeypatch.setenv("AWS_REGION", "us-gov-east-1")
+    assert get_aws_region() == "us-gov-east-1"
+    assert get_aws_partition() == "aws-us-gov"

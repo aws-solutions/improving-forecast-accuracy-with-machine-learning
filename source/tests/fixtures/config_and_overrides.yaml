@@ -234,6 +234,15 @@ RetailDemandTRM:
   Forecast: *ForecastDefaults
   Predictor: *PredictorDefaults
 
+RetailDemandTM:
+  DatasetGroup:
+    Domain: *Retail
+  Datasets:
+    - *RetailTargetTimeSeries
+    - *RetailMetadata
+  Forecast: *ForecastDefaults
+  Predictor: *PredictorDefaults
+
 RetailDemandTR:
   DatasetGroup:
     Domain: *Retail
@@ -289,6 +298,33 @@ RetailDemandTNPTS:
       - "0.50"
       - "0.99"
 
+DatasetsFromRetailDemandTRMProphet:
+  DatasetGroup:
+    Domain: *Retail
+
+  Datasets:
+    From: RetailDemandTRMProphet
+
+  Predictor:
+    AlgorithmArn: arn:aws:forecast:::algorithm/CNN-QR
+    ForecastHorizon: 72
+    FeaturizationConfig:
+      ForecastFrequency: D
+      Featurizations:
+        - AttributeName: price
+          FeaturizationPipeline:
+            - FeaturizationMethodName: filling
+              FeaturizationMethodParameters:
+                futurefill: max
+                middlefill: median
+                backfill: median
+
+  Forecast:
+    ForecastTypes:
+      - "0.01"
+      - "0.50"
+      - "0.99"
+
 RetailDemandTRMProphet:
   DatasetGroup:
     Domain: *Retail
@@ -317,3 +353,47 @@ RetailDemandTRMProphet:
       - "0.01"
       - "0.50"
       - "0.99"
+
+
+RetailDimensions:
+  DatasetGroup:
+    Domain: RETAIL
+
+  Datasets:
+    - Domain: RETAIL
+      DatasetType: TARGET_TIME_SERIES
+      DataFrequency: 5min
+      TimestampFormat: yyyy-MM-dd HH:mm:ss
+      Schema:
+        Attributes:
+          - AttributeName: item_id
+            AttributeType: string
+          - AttributeName: timestamp
+            AttributeType: timestamp
+          - AttributeName: demand
+            AttributeType: float
+          - AttributeName: location
+            AttributeType: string
+
+    - Domain: RETAIL
+      DatasetType: ITEM_METADATA
+      Schema:
+        Attributes:
+          - AttributeName: item_id
+            AttributeType: string
+          - AttributeName: brand
+            AttributeType: string
+
+  Predictor:
+    AlgorithmArn: arn:aws:forecast:::algorithm/Prophet
+    MaxAge: 604800  # one week
+    ForecastHorizon: 96
+    FeaturizationConfig:
+      ForecastFrequency: 5min
+      ForecastDimensions: ["location"]
+
+  Forecast:
+    ForecastTypes:
+      - "0.10"
+      - "0.50"
+      - "0.90"

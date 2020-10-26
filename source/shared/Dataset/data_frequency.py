@@ -12,8 +12,12 @@
 # #####################################################################################################################
 
 import re
+from functools import total_ordering
+
+_data_frequencies = ["Y", "M", "W", "D", "H", "30min", "15min", "10min", "5min", "1min"]
 
 
+@total_ordering
 class DataFrequency:
     """Used to validate data frequencies provided in configuration files."""
 
@@ -26,11 +30,21 @@ class DataFrequency:
             )
         self.frequency = frequency
 
+    def __lt__(self, other):
+        try:
+            idx_self = _data_frequencies.index(str(self))
+            idx_other = _data_frequencies.index(str(other))
+        except ValueError:
+            raise ValueError(
+                f"Invalid frequency. Frequency {other} does not match {self.valid_frequency.pattern}"
+            )
+        return idx_self < idx_other
+
+    def __eq__(self, other):
+        return self.frequency == other
+
     def __str__(self) -> str:
         return self.frequency
 
     def __repr__(self) -> str:
         return f"DataFrequency(frequency='{self.frequency}')"
-
-    def __eq__(self, other):
-        return self.frequency == other

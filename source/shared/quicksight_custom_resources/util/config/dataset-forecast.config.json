@@ -1,0 +1,513 @@
+{
+    "PhysicalTableMap": {
+        "2932a5fe-d6ba-420c-a02c-6673fba5c040": {
+            "RelationalTable": {
+                "DataSourceArn": "{self.data_source.arn}",
+                "Schema": "{self.schema}",
+                "Name": "{self.table_name}",
+                "InputColumns": [
+                    {
+                        "Name": "timestamp",
+                        "Type": "DATETIME"
+                    },
+                    {
+                        "Name": "identifier",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "metric",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p1",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p2",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p3",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p4",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p5",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p6",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p7",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p8",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p9",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p10",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p11",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p12",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p13",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p14",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p15",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p16",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p17",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p18",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p19",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p20",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p21",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p22",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p23",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p24",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p25",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p26",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p27",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p28",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p29",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p30",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p31",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p32",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p33",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p34",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p35",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p36",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p37",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p38",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p39",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p40",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p41",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p42",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p43",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p44",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p45",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p46",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p47",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p48",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p49",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p50",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p51",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p52",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p53",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p54",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p55",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p56",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p57",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p58",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p59",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p60",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p61",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p62",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p63",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p64",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p65",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p66",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p67",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p68",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p69",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p70",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p71",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p72",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p73",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p74",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p75",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p76",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p77",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p78",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p79",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p80",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p81",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p82",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p83",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p84",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p85",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p86",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p87",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p88",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p89",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p90",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p91",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p92",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p93",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p94",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p95",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p96",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p97",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p98",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "p99",
+                        "Type": "DECIMAL"
+                    },
+                    {
+                        "Name": "dimension_1",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "dimension_2",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "dimension_3",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "dimension_4",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "dimension_5",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "dimension_6",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "dimension_7",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "dimension_8",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "dimension_9",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "dimension_10",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "metadata_1",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "metadata_2",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "metadata_3",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "metadata_4",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "metadata_5",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "metadata_6",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "metadata_7",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "metadata_8",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "metadata_9",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "metadata_10",
+                        "Type": "STRING"
+                    },
+                    {
+                        "Name": "month_starting",
+                        "Type": "STRING"
+                    }
+                ]
+            }
+        }
+    },
+    "LogicalTableMap": {
+        "761f9868-7bbe-4e97-a686-c5886ed2aa3b": {
+            "Alias": "forecast_output",
+            "Source": {
+                "PhysicalTableId": "2932a5fe-d6ba-420c-a02c-6673fba5c040"
+            }
+        }
+    }
+}

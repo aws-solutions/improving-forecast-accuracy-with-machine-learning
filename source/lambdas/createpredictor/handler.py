@@ -27,8 +27,9 @@ def createpredictor(event, context) -> (Status, str):
     """
     config = Config.from_sfn(event)
     dataset_file = DatasetFile(event.get("dataset_file"), event.get("bucket"))
+    dataset_group_name = event.get("dataset_group_name")
 
-    predictor = config.predictor(dataset_file)
+    predictor = config.predictor(dataset_file, dataset_group_name)
     if predictor.status == Status.DOES_NOT_EXIST:
         predictor.create()
 

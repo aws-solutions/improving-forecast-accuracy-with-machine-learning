@@ -156,3 +156,45 @@ def test_dataset_create(configuration_data, forecast_stub):
     dataset.create()
 
     forecast_stub.assert_no_pending_responses()
+
+
+@mock_sts
+def test_dataset_import_timestamp_format_none(configuration_data, forecast_stub):
+    config = Config()
+    config.config = configuration_data
+
+    dataset_file = DatasetFile("RetailDemandTRM.csv", "some_bucket")
+    dataset = config.dataset(dataset_file)
+
+    forecast_stub.add_response("list_dataset_import_jobs", {"DatasetImportJobs": []})
+    dataset.cli = forecast_stub.client
+
+    assert dataset.timestamp_format == None
+
+
+@mock_sts
+@pytest.mark.parametrize("format", ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd",])
+def test_dataset_import_timestamp_format(configuration_data, forecast_stub, format):
+    config = Config()
+    config.config = configuration_data
+
+    dataset_file = DatasetFile("RetailDemandTRM.csv", "some_bucket")
+    dataset = config.dataset(dataset_file)
+
+    forecast_stub.add_response(
+        "list_dataset_import_jobs",
+        {
+            "DatasetImportJobs": [
+                {
+                    "DatasetImportJobArn": "arn:something",
+                    "LastModificationTime": datetime(2015, 1, 1),
+                }
+            ]
+        },
+    )
+    forecast_stub.add_response(
+        "describe_dataset_import_job", {"TimestampFormat": format}
+    )
+    dataset.cli = forecast_stub.client
+
+    assert dataset.timestamp_format == format

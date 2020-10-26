@@ -50,6 +50,12 @@ Parameters:
       - ml.r5.large
       - ml.c5.large
 
+  QuickSightAnalysisOwner:
+    Type: String
+    Description: With QuickSight Enterprise enabled, provide a QuickSight ADMIN user ARN to automatically create QuickSight analyses
+    Default: ""
+    AllowedPattern: '(^arn:.*:quicksight:.*:.*:user.*$|^$)'
+
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -60,6 +66,7 @@ Metadata:
       - Label:
           default: "Visualization Options"
         Parameters:
+          - QuickSightAnalysisOwner
           - NotebookDeploy
           - NotebookInstanceType
           - NotebookVolumeSize
@@ -70,6 +77,8 @@ Metadata:
     ParameterLabels:
       LambdaLogLevel:
         default: CloudWatch Log Level
+      QuickSightAnalysisOwner:
+        default: Deploy QuickSight Dashboards
       NotebookDeploy:
         default: Deploy Jupyter Notebook
       NotebookVolumeSize:
@@ -89,12 +98,14 @@ Mappings:
     General:
       S3Bucket: "%%BUCKET_NAME%%"
       KeyPrefix: "%%SOLUTION_NAME%%/%%VERSION%%"
+      QuickSightSourceTemplateArn: "%%QUICKSIGHT_SOURCE%%"
 
 
 Conditions:
   CreateNotebook: !Equals [ !Ref NotebookDeploy, 'Yes' ]
   EmailProvided:  !Not [!Equals [ !Ref Email, '' ] ]
   SendAnonymousUsageData: !Equals [ !FindInMap ['Solution', 'Data', 'SendAnonymousUsageData' ], 'Yes' ]
+  CreateAnalysis: !Not [!Equals [ !Ref QuickSightAnalysisOwner, ''] ]
 
 Resources:
   # --------- Jupyter Notebook ----------
@@ -229,7 +240,44 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
 
-  # --------- Bucket ---------
+  # --------- Buckets and Bucket Policies ---------
+  AthenaBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W51
+            reason: This bucket is used for storing Athena query results, is private, and does not need a bucket policy
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LoggingConfiguration:
+        DestinationBucketName: !Ref AccessLogsBucket
+        LogFilePrefix: athena-bucket-access-logs/
+
+  AthenaBucketSSLPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref AthenaBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Deny
+            Action: "*"
+            Principal: "*"
+            Resource: !Sub "arn:${AWS::Partition}:s3:::${AthenaBucket}/*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": False
+
   ForecastBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
@@ -251,6 +299,14 @@ Resources:
         BlockPublicPolicy: True
         IgnorePublicAcls: True
         RestrictPublicBuckets: True
+      LifecycleConfiguration:
+        Rules:
+          - AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 3
+            Status: Enabled
+          - ExpirationInDays: 1
+            Prefix: raw/
+            Status: Enabled
       LoggingConfiguration:
         DestinationBucketName: !Ref AccessLogsBucket
         LogFilePrefix: forecast-bucket-access-logs/
@@ -300,6 +356,43 @@ Resources:
       Code:
         S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "cloudformation_resources.zip"]]
+
+  # ---------- Athena and Glue ----------
+  AthenaWorkGroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: !Sub "${AWS::StackName}"
+      Description: !Sub "Workgroup for Improving Forecast Accuracy with Machine Learning (stack: ${AWS::StackName})"
+      State: ENABLED
+      RecursiveDeleteOption: True
+      WorkGroupConfiguration:
+        EnforceWorkGroupConfiguration: True
+        ResultConfiguration:
+          OutputLocation: !Sub "s3://${AthenaBucket}/query-results"
+          EncryptionConfiguration:
+            EncryptionOption: SSE_S3
+
+  DataCatalog:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: !Sub "forecast_${UniqueName.Id}"
+        Description: !Sub "Database for Improving Forecast Accuracy with Machine Learning (stack: ${AWS::StackName})"
+
+  SecurityConfiguration:
+    Type: AWS::Glue::SecurityConfiguration
+    Properties:
+      Name: !Sub "Security Configuration for ${AWS::StackName}"
+      EncryptionConfiguration:
+        CloudWatchEncryption:
+          CloudWatchEncryptionMode: SSE-KMS
+          KmsKeyArn: !Sub "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}/alias/aws/glue"
+        JobBookmarksEncryption:
+          JobBookmarksEncryptionMode: CSE-KMS
+          KmsKeyArn: !Sub "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}/alias/aws/glue"
+        S3Encryptions:
+          - S3EncryptionMode: SSE-S3
 
   RedeployLambdas:
     Type: Custom::RedeployLambdas
@@ -363,22 +456,16 @@ Resources:
         S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
         S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "lambda_dependencies.zip"]]
 
-  CreateDataset:
-    Type: AWS::Lambda::Function
+  LayerDatasetUtils:
+    Type: AWS::Lambda::LayerVersion
     Properties:
-      FunctionName: !Sub "${AWS::StackName}-CreateDataset-${RedeployLambdas.Id}"
-      Code:
+      Description: Dependencies for data manipulation with Athena/ PyAthena
+      LayerName: !Sub "${AWS::StackName}-LayerDatasetUtils-${RedeployLambdas.Id}"
+      CompatibleRuntimes:
+        - python3.8
+      Content:
         S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
-        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "createdataset.zip"]]
-      Layers:
-        - !Ref LayerDependencies
-      Handler: handler.createdataset
-      Runtime: python3.8
-      Role: !GetAtt LambdaForecastRole.Arn
-      Timeout: 300
-      Environment:
-        Variables:
-          LOG_LEVEL: !Ref LambdaLogLevel
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "lambda_datasetutils.zip"]]
 
   CreateDatasetGroup:
     Type: AWS::Lambda::Function
@@ -450,6 +537,28 @@ Resources:
           EXPORT_ROLE: !GetAtt [ForecastS3AccessRole, Arn]
           LOG_LEVEL: !Ref LambdaLogLevel
 
+  PrepareForecastExport:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-PrepareForecastExport-${RedeployLambdas.Id}"
+      Code:
+        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
+        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "datasetutils.zip"]]
+      Layers:
+        - !Ref LayerDatasetUtils
+      Handler: handler.prepareexport
+      Runtime: python3.8
+      Timeout: 900
+      MemorySize: 512
+      Role: !GetAtt [PrepareForecastRole, Arn]
+      Environment:
+        Variables:
+          WORKGROUP_NAME: !Ref AthenaWorkGroup
+          SCHEMA_NAME: !Ref DataCatalog
+          QUICKSIGHT_PRINCIPAL: !Ref QuickSightAnalysisOwner
+          LOG_LEVEL: !Ref LambdaLogLevel
+          QUICKSIGHT_SOURCE: !FindInMap ["SourceCode", "General", "QuickSightSourceTemplateArn"]
+
   NotifyTopic:
     Type: AWS::Lambda::Function
     Properties:
@@ -460,24 +569,6 @@ Resources:
       Layers:
         - !Ref LayerDependencies
       Handler: handler.sns
-      Runtime: python3.8
-      Timeout: 300
-      Role: !GetAtt [NotificationRole, Arn]
-      Environment:
-        Variables:
-          SNS_TOPIC_ARN: !Ref NotificationTopic
-          LOG_LEVEL: !Ref LambdaLogLevel
-
-  NotifyTopicConditional:
-    Type: AWS::Lambda::Function
-    Properties:
-      FunctionName: !Sub "${AWS::StackName}-NotifyTopicCond-${RedeployLambdas.Id}"
-      Code:
-        S3Bucket: !Join ["-", [!FindInMap ["SourceCode", "General", "S3Bucket"], Ref: "AWS::Region"]]
-        S3Key: !Join ["/", [!FindInMap ["SourceCode", "General", "KeyPrefix"], "sns.zip"]]
-      Layers:
-        - !Ref LayerDependencies
-      Handler: handler.sns_conditional
       Runtime: python3.8
       Timeout: 300
       Role: !GetAtt [NotificationRole, Arn]
@@ -520,13 +611,12 @@ Resources:
                 Action:
                   - lambda:InvokeFunction
                 Resource:
-                  - !GetAtt [CreateDataset, Arn]
                   - !GetAtt [CreateDatasetGroup, Arn]
                   - !GetAtt [CreateDatasetImportJob, Arn]
                   - !GetAtt [CreatePredictor, Arn]
                   - !GetAtt [CreateForecast, Arn]
                   - !GetAtt [NotifyTopic, Arn]
-                  - !GetAtt [NotifyTopicConditional, Arn]
+                  - !GetAtt [PrepareForecastExport, Arn]
 
   TriggerRole:
     Type: AWS::IAM::Role
@@ -632,6 +722,152 @@ Resources:
                   - logs:PutLogEvents
                 Resource:
                   - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
+
+  PrepareForecastRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: AWS::IAM::Roles for CloudWatch require "*" resources
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+              Service:
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ForecastAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - forecast:Describe*
+                  - forecast:List*
+                  - forecast:Create*
+                  - forecast:Update*
+                  - forecast:TagResource
+                Resource: "*"
+        - PolicyName: AthenaAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - athena:StartQueryExecution
+                  - athena:GetQueryExecution
+                  - athena:GetQueryResults
+                Resource: !Sub "arn:${AWS::Partition}:athena:${AWS::Region}:${AWS::AccountId}:workgroup/${AthenaWorkGroup}"
+        - PolicyName: GlueAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - glue:GetDatabase
+                  - glue:GetTable
+                  - glue:GetPartitions
+                  - glue:DeleteTable
+                  - glue:CreateTable
+                  - glue:BatchCreatePartition
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog"
+                  - !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:${DataCatalog}"
+                  - !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:table/${DataCatalog}/*"
+                  - !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:database/${DataCatalog}"
+        - PolicyName: QuickSightAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - quicksight:CreateAnalysis
+                  - quicksight:DeleteAnalysis
+                  - quicksight:CreateDataSet
+                  - quicksight:DeleteDataSet
+                  - quicksight:CreateDataSource
+                  - quicksight:UpdateDataSource
+                  - quicksight:UpdateDataSourcePermissions
+                  - quicksight:DeleteDataSource
+                  - quicksight:Describe*
+                  - quicksight:Get*
+                  - quicksight:List*
+                  - quicksight:PassDataSet
+                  - quicksight:PassDataSource
+                  - quicksight:RestoreAnalysis
+                  - quicksight:SearchAnalyses
+                Resource: "*"
+        - PolicyName: LoggingPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
+        - PolicyName: AthenaBucketAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:ListObjects
+                  - s3:PutObject
+                  - s3:CreateMultipartUpload
+                  - s3:ListMultipartUploadParts
+                  - s3:AbortMultipartUpload
+                Resource:
+                  - !Sub "${AthenaBucket.Arn}/*"
+                  - !Sub "${AthenaBucket.Arn}"
+        - PolicyName: ForecastBucketAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:ListObjects
+                  - s3:PutObject
+                  - s3:CreateMultipartUpload
+                  - s3:ListMultipartUploadParts
+                  - s3:AbortMultipartUpload
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:s3:::${DataBucketName.Name}/*"
+                  - !Sub "arn:${AWS::Partition}:s3:::${DataBucketName.Name}"
+        - PolicyName: ForecastPassRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !GetAtt [ForecastS3AccessRole, Arn]
+        - PolicyName: ForecastCloudwatchAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Condition:
+                  StringLike:
+                    "cloudwatch:namespace": "Forecast*"
+                Resource: "*"
+
+
 
   LambdaForecastRole:
     Type: AWS::IAM::Role
@@ -742,21 +978,15 @@ Resources:
           - |-
             {
               "Comment": "An automation Pipeline for Amazon Forecast",
-              "StartAt": "Notify-On-Error",
+              "StartAt": "Check-Error",
               "States": {
-                "Notify-On-Error": {
-                  "Type": "Task",
-                  "Resource": "${NotifyTopicConditionalArn}",
-                  "ResultPath": "$.inputProcessingFailure",
-                  "Next": "Check-Error"
-                },
                 "Check-Error": {
                   "Type": "Choice",
                   "Choices": [
                     {
-                      "Variable": "$.inputProcessingFailure",
-                      "BooleanEquals": true,
-                      "Next": "FailureState"
+                      "Variable": "$.serviceError",
+                      "IsPresent": true,
+                      "Next": "Notify-Failed"
                     }
                   ],
                   "Default": "Create-DatasetGroup"
@@ -764,118 +994,197 @@ Resources:
                 "Create-DatasetGroup": {
                   "Type": "Task",
                   "Resource": "${CreateDatasetGroupArn}",
-                  "ResultPath": "$.DatasetGroupArn",
-                  "Retry": [{
-                    "ErrorEquals": ["ResourcePending", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
-                    "IntervalSeconds": 5,
-                    "BackoffRate": 1.05
-                  }],
-                  "Catch": [{
-                    "ErrorEquals": ["ResourceFailed"],
-                    "ResultPath": "$.serviceError",
-                    "Next": "Notify-Failed"
-                  }, {
-                    "ErrorEquals": ["States.ALL"],
-                    "ResultPath": "$.statesError",
-                    "Next": "Notify-Failed"
-                  }],
-                  "Next": "Create-Dataset"
-                },
-                "Create-Dataset": {
-                  "Type": "Task",
-                  "Resource": "${CreateDatasetArn}",
-                  "ResultPath": "$.DatasetArn",
-                  "Retry": [{
-                    "ErrorEquals": ["ResourcePending", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
-                    "IntervalSeconds": 5,
-                    "BackoffRate": 1.05,
-                    "MaxAttempts": 100
-                  }],
-                  "Catch": [{
-                    "ErrorEquals": ["ResourceFailed"],
-                    "ResultPath": "$.serviceError",
-                    "Next": "Notify-Failed"
-                  }, {
-                    "ErrorEquals": ["States.ALL"],
-                    "ResultPath": "$.statesError",
-                    "Next": "Notify-Failed"
-                  }],
+                  "ResultPath": "$.DatasetGroupNames",
+                  "Retry": [
+                    {
+                      "ErrorEquals": [
+                        "ResourcePending",
+                        "Lambda.ServiceException",
+                        "Lambda.AWSLambdaException",
+                        "Lambda.SdkClientException"
+                      ],
+                      "IntervalSeconds": 5,
+                      "BackoffRate": 1.05
+                    }
+                  ],
+                  "Catch": [
+                    {
+                      "ErrorEquals": [
+                        "ResourceFailed"
+                      ],
+                      "ResultPath": "$.serviceError",
+                      "Next": "Notify-Failed"
+                    },
+                    {
+                      "ErrorEquals": [
+                        "States.ALL"
+                      ],
+                      "ResultPath": "$.statesError",
+                      "Next": "Notify-Failed"
+                    }
+                  ],
                   "Next": "Import-Data"
                 },
                 "Import-Data": {
                   "Type": "Task",
                   "Resource": "${ImportDataArn}",
                   "ResultPath": "$.DatasetImportJobArn",
-                  "Retry": [{
-                    "ErrorEquals": ["ResourcePending", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
-                    "IntervalSeconds": 5,
-                    "BackoffRate": 1.05,
-                    "MaxAttempts": 100
-                  }],
-                  "Catch": [{
-                    "ErrorEquals": ["ResourceFailed"],
-                    "ResultPath": "$.serviceError",
-                    "Next": "Notify-Failed"
-                  }, {
-                    "ErrorEquals": ["States.ALL"],
-                    "ResultPath": "$.statesError",
-                    "Next": "Notify-Failed"
-                  }],
-                  "Next": "Create-Predictor"
+                  "Retry": [
+                    {
+                      "ErrorEquals": [
+                        "ResourcePending",
+                        "Lambda.ServiceException",
+                        "Lambda.AWSLambdaException",
+                        "Lambda.SdkClientException"
+                      ],
+                      "IntervalSeconds": 5,
+                      "BackoffRate": 1.05,
+                      "MaxAttempts": 100
+                    }
+                  ],
+                  "Catch": [
+                    {
+                      "ErrorEquals": [
+                        "ResourceFailed"
+                      ],
+                      "ResultPath": "$.serviceError",
+                      "Next": "Notify-Failed"
+                    },
+                    {
+                      "ErrorEquals": [
+                        "States.ALL"
+                      ],
+                      "ResultPath": "$.statesError",
+                      "Next": "Notify-Failed"
+                    }
+                  ],
+                  "Next": "Create-Forecasts"
                 },
-                "Create-Predictor": {
-                  "Type": "Task",
-                  "Resource": "${CreatePredictorArn}",
-                  "ResultPath": "$.PredictorArn",
-                  "Retry": [{
-                    "ErrorEquals": ["DatasetsImporting", "ResourcePending", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
-                    "IntervalSeconds": 5,
-                    "BackoffRate": 1.05,
-                    "MaxAttempts": 100
-                  }],
-                  "Catch": [{
-                    "ErrorEquals": ["ResourceFailed"],
-                    "ResultPath": "$.serviceError",
-                    "Next": "Notify-Failed"
-                  }, {
-                    "ErrorEquals": ["NotMostRecentUpdate"],
-                    "Next": "Update-Not-Required"
-                  }, {
-                    "ErrorEquals": ["States.ALL"],
-                    "ResultPath": "$.statesError",
-                    "Next": "Notify-Failed"
-                  }],
-                  "Next": "Create-Forecast"
-                },
-                "Update-Not-Required": {
-                  "Type": "Succeed"
-                },
-                "Create-Forecast": {
-                  "Type": "Task",
-                  "Resource": "${CreateForecastArn}",
-                  "ResultPath": "$.ForecastArn",
-                  "Retry": [{
-                    "ErrorEquals": ["ResourcePending", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
-                    "IntervalSeconds": 5,
-                    "BackoffRate": 1.05,
-                    "MaxAttempts": 100
-                  }],
-                  "Catch": [{
-                    "ErrorEquals": ["ResourceFailed"],
-                    "ResultPath": "$.serviceError",
-                    "Next": "Notify-Failed"
-                  }, {
-                    "ErrorEquals": ["States.ALL"],
-                    "ResultPath": "$.statesError",
-                    "Next": "Notify-Failed"
-                  }],
-                  "Next": "Notify-Success"
-                },
-                "Notify-Success": {
-                  "Type": "Task",
-                  "Resource": "${NotifyTopicArn}",
-                  "ResultPath": "$.NotifyTopic",
-                  "Next": "SuccessState"
+                "Create-Forecasts": {
+                  "Type": "Map",
+                  "End": true,
+                  "ItemsPath": "$.DatasetGroupNames",
+                  "Parameters": {
+                    "bucket.$": "$.bucket",
+                    "dataset_file.$": "$.dataset_file",
+                    "dataset_group_name.$": "$$.Map.Item.Value",
+                    "config.$": "$.config"
+                  },
+                  "Iterator": {
+                    "StartAt": "Create-Predictor",
+                    "States": {
+                      "Create-Predictor": {
+                        "Type": "Task",
+                        "Resource": "${CreatePredictorArn}",
+                        "ResultPath": "$.PredictorArn",
+                        "Retry": [
+                          {
+                            "ErrorEquals": [
+                              "DatasetsImporting",
+                              "ResourcePending",
+                              "Lambda.ServiceException",
+                              "Lambda.AWSLambdaException",
+                              "Lambda.SdkClientException"
+                            ],
+                            "IntervalSeconds": 5,
+                            "BackoffRate": 1.05,
+                            "MaxAttempts": 100
+                          }
+                        ],
+                        "Catch": [
+                          {
+                            "ErrorEquals": [
+                              "ResourceFailed"
+                            ],
+                            "ResultPath": "$.serviceError",
+                            "Next": "Notify-Prediction-Failed"
+                          },
+                          {
+                            "ErrorEquals": [
+                              "NotMostRecentUpdate"
+                            ],
+                            "Next": "Update-Not-Required"
+                          },
+                          {
+                            "ErrorEquals": [
+                              "States.ALL"
+                            ],
+                            "ResultPath": "$.statesError",
+                            "Next": "Notify-Prediction-Failed"
+                          }
+                        ],
+                        "Next": "Create-Forecast"
+                      },
+                      "Update-Not-Required": {
+                        "Type": "Succeed"
+                      },
+                      "Create-Forecast": {
+                        "Type": "Task",
+                        "Resource": "${CreateForecastArn}",
+                        "ResultPath": "$.ForecastArn",
+                        "Retry": [
+                          {
+                            "ErrorEquals": [
+                              "ResourcePending",
+                              "Lambda.ServiceException",
+                              "Lambda.AWSLambdaException",
+                              "Lambda.SdkClientException"
+                            ],
+                            "IntervalSeconds": 5,
+                            "BackoffRate": 1.05,
+                            "MaxAttempts": 100
+                          }
+                        ],
+                        "Catch": [
+                          {
+                            "ErrorEquals": [
+                              "ResourceFailed"
+                            ],
+                            "ResultPath": "$.serviceError",
+                            "Next": "Notify-Prediction-Failed"
+                          },
+                          {
+                            "ErrorEquals": [
+                              "States.ALL"
+                            ],
+                            "ResultPath": "$.statesError",
+                            "Next": "Notify-Prediction-Failed"
+                          }
+                        ],
+                        "Next": "Export-Forecast"
+                      },
+                      "Export-Forecast": {
+                        "Type": "Task",
+                        "Resource": "${PrepareForecastExportArn}",
+                        "ResultPath": "$.ExportTableName",
+                        "Catch": [
+                          {
+                            "ErrorEquals": [
+                              "States.ALL"
+                            ],
+                            "ResultPath": "$.statesError",
+                            "Next": "Notify-Prediction-Failed"
+                          }
+                        ],
+                        "Next": "Notify-Success"
+                      },
+                      "Notify-Success": {
+                        "Type": "Task",
+                        "Resource": "${NotifyTopicArn}",
+                        "ResultPath": "$.NotifyTopic",
+                        "End": true
+                      },
+                      "Notify-Prediction-Failed": {
+                        "Type": "Task",
+                        "Resource": "${NotifyTopicArn}",
+                        "ResultPath": null,
+                        "Next": "Prediction-Failed"
+                      },
+                      "Prediction-Failed": {
+                        "Type": "Fail"
+                      }
+                    }
+                  }
                 },
                 "Notify-Failed": {
                   "Type": "Task",
@@ -883,21 +1192,17 @@ Resources:
                   "ResultPath": null,
                   "Next": "FailureState"
                 },
-                "SuccessState": {
-                  "Type": "Succeed"
-                },
                 "FailureState": {
                   "Type": "Fail"
                 }
               }
             }
-          - CreateDatasetArn: !GetAtt [CreateDataset, Arn]
-            CreateDatasetGroupArn: !GetAtt [CreateDatasetGroup, Arn]
+          - CreateDatasetGroupArn: !GetAtt [CreateDatasetGroup, Arn]
             ImportDataArn: !GetAtt [CreateDatasetImportJob, Arn]
             CreatePredictorArn: !GetAtt [CreatePredictor, Arn]
             CreateForecastArn: !GetAtt [CreateForecast, Arn]
             NotifyTopicArn: !GetAtt [NotifyTopic, Arn]
-            NotifyTopicConditionalArn: !GetAtt [NotifyTopicConditional, Arn]
+            PrepareForecastExportArn: !GetAtt [PrepareForecastExport, Arn]
 
   SolutionMetricsAnonymousData:
     Type: "Custom::AnonymousData"
@@ -909,6 +1214,7 @@ Resources:
       Region: !Sub "${AWS::Region}"
       NotebookDeployed: !If [ CreateNotebook, 'Yes', 'No' ]
       NotebookType: !If [ CreateNotebook, !Ref NotebookInstanceType, !Ref "AWS::NoValue"]
+      QuickSightDeployed: !If [ CreateAnalysis, 'Yes', 'No' ]
 
   SolutionMetrics:
     Type: AWS::Lambda::Function
@@ -928,3 +1234,6 @@ Outputs:
   ForecastBucketName:
     Description: Forecast bucket name to drop your files
     Value: !Ref ForecastBucket
+  AthenaBucketName:
+    Description: Athena query output bucket
+    Value: !Ref AthenaBucket

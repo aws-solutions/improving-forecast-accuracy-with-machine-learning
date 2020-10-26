@@ -1,0 +1,13 @@
+dashboard:
+  id: SO0123-v1_1_0_Dashboard
+  name: SO0123-v1_1_0_Dashboard
+analysis:
+  id: 5474c34d-e711-49f7-9225-62d67b52b8d4
+  name: SO0123-v1_1_0_Analysis
+dataset:
+  forecast:
+    id: 08a7bf97-c085-47cf-a7fe-aaf9a6987d08
+    name: export_ts_2020_10_19_16_28_06
+datasource:
+  id: f0484c42-00be-4f91-a2aa-1711a8f9ff15
+  name: Forecast

@@ -27,13 +27,24 @@ def createdatasetgroup(event, context) -> (Status, str):
     """
     config = Config.from_sfn(event)
     dataset_file = DatasetFile(event.get("dataset_file"), event.get("bucket"))
+    dataset_groups = config.dataset_groups(dataset_file)
+    datasets = config.datasets(dataset_file)
 
-    dataset_group = config.dataset_group(dataset_file)
-    if dataset_group.status == Status.DOES_NOT_EXIST:
-        dataset_group.create()
+    # dataset group creation returns an ARN immediately; creation of all dependent dataset groups is safe
+    # dataset group update returns immediately; update of all dependent dataset groups is safe
+    for dataset_group in dataset_groups:
+        if dataset_group.status == Status.DOES_NOT_EXIST:
+            dataset_group.create()
 
-    if dataset_group.status == Status.ACTIVE:
-        datasets = config.datasets(dataset_file)
+        if dataset_group.status != Status.ACTIVE:
+            raise ValueError(
+                f"Dataset group {dataset_group.dataset_group_name} is {dataset_group.status}, expected ACTIVE"
+            )
+
         dataset_group.update(datasets, dataset_file)
 
-    return dataset_group.status, dataset_group.arn
+    # at this point, we are guaranteed that all dataset groups are active (or an error was thrown)
+    return (
+        Status.ACTIVE,
+        [dataset_group.dataset_group_name for dataset_group in dataset_groups],
+    )

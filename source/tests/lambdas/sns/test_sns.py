@@ -12,7 +12,6 @@
 # #####################################################################################################################
 
 import json
-import logging
 
 import boto3
 import pytest
@@ -20,11 +19,8 @@ from moto import mock_sns
 
 from lambdas.sns.handler import (
     sns,
-    sns_conditional,
     prepare_forecast_ready_message,
 )
-from shared.Dataset.dataset_file import DatasetFile
-from shared.Dataset.dataset_type import DatasetType
 
 fail_state_error_message = json.loads(
     """
@@ -75,7 +71,8 @@ succeed = json.loads(
     """
 {
   "bucket": "some_bucket",
-  "dataset_file": "train/some_forecast_name.csv"
+  "dataset_file": "train/some_forecast_name.csv",
+  "dataset_group_name": "some_forecast_from_some_forecast_name"
 }
 """
 )
@@ -84,7 +81,8 @@ succeed_related = json.loads(
     """
 {
   "bucket": "some_bucket",
-  "dataset_file": "train/some_forecast_name.related.csv"
+  "dataset_file": "train/some_forecast_name.related.csv",
+  "dataset_group_name": "some_forecast_from_some_forecast_name"
 }
 """
 )
@@ -123,32 +121,12 @@ def mocked_sns():
         yield cli
 
 
-@pytest.fixture(params=["dataset", "dataset.related", "dataset.metadata"])
-def dataset_file(request) -> DatasetFile:
-    csv_name = f"train/{request.param}.csv"
-    dsf = DatasetFile(csv_name, "bucketname")
-    return dsf
-
-
 def test_sns_notification(fail_state_error, mocked_sns):
     sns(fail_state_error, None)
 
 
 def test_sns_notification_success(success_event, mocked_sns):
     sns(success_event, None)
-
-
-def test_sns_conditional_no_error(success_event, mocker):
-    patched_client = mocker.patch("lambdas.sns.handler.get_sns_client")
-    sns_conditional(success_event, None)
-
-    patched_client().publish.assert_not_called()
-
-
-def test_sns_conditional_error(fail_service_error, mocker):
-    patched_client = mocker.patch("lambdas.sns.handler.get_sns_client")
-    sns_conditional(fail_service_error_message, None)
-    assert patched_client().publish.called
 
 
 def test_sns_notification_in_progress(in_progress, mocker):
@@ -160,8 +138,9 @@ def test_sns_notification_in_progress(in_progress, mocker):
     ].kwargs.get("Message")
 
 
-def test_prepare_forecast_ready_message(dataset_file):
+def test_prepare_forecast_ready_message(success_event):
+    dataset_group_name = "some_forecast_from_some_forecast_name"
     assert (
-        prepare_forecast_ready_message(dataset_file)
-        == f"Forecast for {dataset_file.prefix} is ready!"
+        prepare_forecast_ready_message(success_event)
+        == f"Forecast for some_forecast_from_some_forecast_name is ready!"
     )

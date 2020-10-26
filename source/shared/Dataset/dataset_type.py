@@ -26,3 +26,14 @@ class DatasetType(Enum):
 
     def __eq__(self, other):
         return self.name == other
+
+    @property
+    def suffix(self):
+        if self.name == self.TARGET_TIME_SERIES:
+            return ".csv"
+        elif self.name == self.RELATED_TIME_SERIES:
+            return ".related.csv"
+        elif self.name == self.ITEM_METADATA:
+            return ".metadata.csv"
+        else:
+            raise ValueError("Invalid Dataset Type")

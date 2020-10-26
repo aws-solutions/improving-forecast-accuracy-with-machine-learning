@@ -1,0 +1,13 @@
+{
+    "SourceEntity": {
+        "SourceAnalysis": {
+            "DataSetReferences": [
+                {
+                    "DataSetPlaceholder": "forecast",
+                    "DataSetArn": "arn:{Aws.PARTITION}:quicksight:{Aws.REGION}:{Aws.ACCOUNT_ID}:dataset/forecast"
+                }
+            ],
+            "Arn": "{self.source_template_arn}"
+        }
+    }
+}

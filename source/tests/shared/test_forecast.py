@@ -41,7 +41,7 @@ def test_init_forecast(forecast_stub, configuration_data):
     config.config = configuration_data
 
     dataset_file = DatasetFile("RetailDemandTNPTS.csv", "some_bucket")
-    forecast = config.forecast(dataset_file)
+    forecast = config.forecast(dataset_file, "RetailDemandTNPTS")
     dataset_group = config.dataset_group(dataset_file)
 
     assert (
@@ -56,7 +56,7 @@ def test_forecast_arn(forecast_stub, configuration_data):
     config.config = configuration_data
 
     dataset_file = DatasetFile("RetailDemandTNPTS.csv", "some_bucket")
-    forecast = config.forecast(dataset_file)
+    forecast = config.forecast(dataset_file, "RetailDemandTNPTS")
 
     forecast.cli = forecast_stub.client
     forecast_stub.add_response(
@@ -84,7 +84,7 @@ def test_forecast_history(forecast_stub, configuration_data):
     config.config = configuration_data
 
     dataset_file = DatasetFile("RetailDemandTNPTS.csv", "some_bucket")
-    forecast = config.forecast(dataset_file)
+    forecast = config.forecast(dataset_file, "RetailDemandTNPTS")
 
     forecast.cli = forecast_stub.client
     forecast_stub.add_response(
@@ -116,7 +116,7 @@ def test_status_not_yet_created(forecast_stub, configuration_data):
     config.config = configuration_data
 
     dataset_file = DatasetFile("RetailDemandTNPTS.csv", "some_bucket")
-    forecast = config.forecast(dataset_file)
+    forecast = config.forecast(dataset_file, "RetailDemandTNPTS")
 
     forecast.cli = forecast_stub.client
     forecast_stub.add_response("list_forecasts", {"Forecasts": []})

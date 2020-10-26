@@ -15,7 +15,6 @@ import json
 import os
 
 from shared.Dataset.dataset_file import DatasetFile
-from shared.Dataset.dataset_type import DatasetType
 from shared.helpers import get_sns_client
 from shared.logging import get_logger
 
@@ -30,13 +29,15 @@ def topic_arn():
     return os.environ["SNS_TOPIC_ARN"]
 
 
-def prepare_forecast_ready_message(file: DatasetFile):
+def prepare_forecast_ready_message(event: dict):
     """
     Prepare a message to notify users that forecasts are ready.
     :param file: the DatasetFile that was updated to trigger this message
     :return: message or none
     """
-    message = f"Forecast for {file.prefix} is ready!"
+    dataset_group = event.get("dataset_group_name")
+
+    message = f"Forecast for {dataset_group} is ready!"
     return message
 
 
@@ -49,15 +50,16 @@ def build_message(event):
     message = ""
     error = None
     file = DatasetFile(event.get("dataset_file"), event.get("bucket"))
+    forecast_for = event.get('dataset_group_name', file.prefix)
 
     if "statesError" in event.keys():
         logger.info("State error message encountered")
-        message += f"There was an error running the forecast for {file.prefix}\n\n"
+        message += f"There was an error running the forecast for {forecast_for}\n\n"
         error = event.get("statesError")
     if "serviceError" in event.keys():
         logger.info("Service error message encountered")
         message += (
-            f"There was a service error running the forecast for {file.prefix}\n\n"
+            f"There was a service error running the forecast for {forecast_for}\n\n"
         )
         error = event.get("serviceError")
 
@@ -69,14 +71,14 @@ def build_message(event):
 
         message += f"Message: {error_message}\n\n"
         if error_type == "DatasetsImporting":
-            message = f"Update for forecast {file.prefix}\n\n"
+            message = f"Update for forecast {forecast_for}\n\n"
             message += error_message
         else:
             message += f"Details: (caught {error_type})\n\n"
             if stack_trace:
                 message += f"\n".join(stack_trace)
     else:
-        message = prepare_forecast_ready_message(file)
+        message = prepare_forecast_ready_message(event)
 
     return message
 
@@ -96,22 +98,3 @@ def sns(event, context):
         cli.publish(TopicArn=topic_arn(), Message=message)
     else:
         logger.info("No message to publish for event: %s" % event)
-
-
-def sns_conditional(event, context):
-    """Send an SNS message if 'serviceError' is specified in the input.
-    :param event: Lambda event
-    :param context: Lambda context
-    :return: True if a message was sent, False otherwise
-    """
-
-    cli = get_sns_client()
-
-    error = event.get("serviceError")
-    if error:
-        logger.info("Publishing message for event %s" % event)
-        cli.publish(TopicArn=topic_arn(), Message=build_message(event))
-        return True
-
-    logger.info("No message to publish for event %s" % event)
-    return False

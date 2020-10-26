@@ -27,7 +27,7 @@ The AWS CloudFormation template deploys the resources required to automate your 
 
 ## Getting Started
 
-You can launch this solution with one click from [AWS Solutions Implementations](https://aws.amazon.com/solutions/implementations). To customize the solution, or to contribute to the solution, follow the steps below:
+You can launch this solution with one click from [AWS Solutions Implementations](https://aws.amazon.com/solutions/implementations/improving-forecast-accuracy-with-machine-learning/). To customize the solution, or to contribute to the solution, follow the steps below:
 
 ## Prerequisites
 The following procedures assumes that all of the OS-level configuration has been completed. They are:
@@ -54,12 +54,32 @@ pip install -r source/requirements-build-and-test.txt
 
 Build the distributable (using the above configured Python virtual environment):
 ```
-DIST_OUTPUT_BUCKET=my-bucket-name  # S3 bucket name where customized code will reside
-SOLUTION_NAME=my-solution-name     # customized solution name
-VERSION=my-version                 # version number for the customized code
-cd ./deployment 
+export DIST_OUTPUT_BUCKET=my-bucket-name
+export SOLUTION_NAME=my-solution-name
+export VERSION=my-version
+export DIST_ACCOUNT_ID=<my-account-id>
+export DIST_QUICKSIGHT_NAMESPACE=my-solution
+cd ./deployment
 chmod +x ./build-s3-dist.py
-./build-s3-dist.py --source-bucket-name $DIST_OUTPUT_BUCKET --solution-name $SOLUTION_NAME --version-code $VERSION
+./build-s3-dist.py \
+    --source-bucket-name $DIST_OUTPUT_BUCKET \
+    --solution-name $SOLUTION_NAME \
+    --version-code $VERSION \
+    --dist-account-id $DIST_ACCOUNT_ID \
+    --dist-quicksight-namespace $DIST_QUICKSIGHT_NAMESPACE
+```
+
+* Parameter details
+```
+$DIST_OUTPUT_BUCKET - This is the global name of the distribution. For the bucket name, the AWS Region is added
+    to the global name (example: 'my-bucket-name-us-east-1') to create a regional bucket. The lambda artifact
+    should be uploaded to the regional buckets for the CloudFormation template to pick it up for deployment.
+$SOLUTION_NAME - The name of This solution (example: improving-forecast-accuracy-with-machine-learning)
+$VERSION - The version number of the change
+$DIST_ACCOUNT_ID - The AWS account id from which the Amazon QuickSight templates should be sourced for Amazon
+    QuickSight Analysis and Dashboard creation
+$DIST_QUICKSIGHT_NAMESPACE - The namespace (template prefix) to use together with DIST_ACCOUNT_ID from which the
+    Amazon QuickSight template should be sourced for Amazon QuickSight Analysis and Dashboard creation
 ```
 
 > **Notes**: The _build-s3-dist_ script expects the bucket name as one of its parameters, and this value should not include the region suffix.
@@ -89,6 +109,10 @@ aws s3 sync ./regional-s3-assets s3://$DIST_OUTPUT_BUCKET-us-east-1/$SOLUTION_NA
 
 * Get the link of `improving-forecast-accuracy-with-machine-learning.template` uploaded to your Amazon S3 bucket.
 * Deploy the solution to your account by launching a new AWS CloudFormation stack using the link of the `improving-forecast-accuracy-with-machine-learning.template`.
+
+## 6. Test/ Demo the Solution
+
+To test the solution, or provide a demo - you can follow the synthetic data generation instructions under `source/synthetic/README.md`.
 
 ### Known issues
 

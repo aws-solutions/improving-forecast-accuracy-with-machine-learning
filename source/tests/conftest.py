@@ -52,6 +52,62 @@ def s3_valid_config():
 
 
 @pytest.fixture(scope="function")
+def s3_valid_files():
+    demand_file = os.path.join(
+        os.path.dirname(__file__), os.path.pardir, "example", "data", "demand.csv"
+    )
+    related_file = os.path.join(
+        os.path.dirname(__file__),
+        os.path.pardir,
+        "example",
+        "data",
+        "demand.related.csv",
+    )
+    metadata_file = os.path.join(
+        os.path.dirname(__file__),
+        os.path.pardir,
+        "example",
+        "data",
+        "demand.metadata.csv",
+    )
+
+    bucket = "testbucket"
+
+    with mock_s3():
+        client = boto3.client("s3", region_name=os.environ.get("AWS_REGION"))
+        client.create_bucket(Bucket=bucket)
+
+        for path in [demand_file, related_file, metadata_file]:
+            with open(path, "r") as f:
+                body = f.read()
+            for item in "T,TR,TM,TRM".split(","):
+                client.put_object(
+                    Bucket=bucket,
+                    Key=f"train/{path.split('/')[-1]}".replace(
+                        "demand", f"RetailDemand{item}"
+                    ),
+                    Body=body,
+                )
+
+        # simulate an export object as well
+        export_body = "item_id,date,location,p10,p50,p90\n"
+        export_body += "alfredo y,1999-12-31T01:00:00Z,kanata,1.1,3.3,5.5"
+        export_body += "alfredo y,1999-12-31T02:00:00Z,kanata,1.5,3.4,5.4"
+        client.put_object(
+            Bucket=bucket,
+            Key=f"exports/export_RetailDemandTRM_2000_01_01_00_00_00/some_file.csv",
+            Body=export_body,
+        )
+        client.put_object(
+            Bucket=bucket,
+            Key=f"exports/export_RetailDemandTRM_2000_01_01_00_00_00/empty.csv",
+            Body="",
+        )
+
+        yield client
+
+
+@pytest.fixture(scope="function")
 def s3_missing_config():
     with mock_s3():
         client = boto3.client("s3", region_name=os.environ.get("AWS_REGION"))

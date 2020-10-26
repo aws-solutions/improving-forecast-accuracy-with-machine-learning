@@ -2,10 +2,12 @@
 omit =
     images/*
     tests/*
+    shared/quicksight_custom_resources/*
 source =
     shared
     lambdas
     notebook
+    synthetic
 
 [report]
 fail_under = 80.0

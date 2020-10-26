@@ -72,3 +72,43 @@ def test_dataset_name_related(dataset_related, bucket):
     assert dsf.name == "some_filename_related"
     assert dsf.prefix == "some_filename"
     assert dsf.data_type == DatasetType.RELATED_TIME_SERIES
+
+
+@pytest.mark.parametrize(
+    "path,bucket,key",
+    [
+        ("s3://some_bucket/some_key", "some_bucket", "some_key"),
+        ("s3://some_bucket/", "some_bucket", ""),
+        ("s3://some_bucket/some_key?query=string", "some_bucket", "some_key"),
+    ],
+)
+def test_dataset_file_from_s3_path(path, bucket, key):
+    dsf = DatasetFile.from_s3_path(s3_path=path)
+    assert dsf.bucket == bucket
+    assert dsf.key == key
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        ("s3://some_bucket/some_key"),
+        ("s3://some_bucket/"),
+        ("s3://some_bucket/some_key?query=string"),
+    ],
+)
+def test_dataset_file_from_s3_path(path):
+    dsf = DatasetFile.from_s3_path(s3_path=path)
+    assert dsf.s3_url == path.split("?")[0]
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        ("s3://some_bucket/some_key"),
+        ("s3://some_bucket/"),
+        ("s3://some_bucket/some_key?query=string"),
+    ],
+)
+def test_dataset_file_from_s3_path(path):
+    dsf = DatasetFile.from_s3_path(s3_path=path)
+    assert dsf.s3_prefix == "s3://some_bucket/"

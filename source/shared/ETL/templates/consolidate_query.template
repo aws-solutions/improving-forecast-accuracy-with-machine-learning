@@ -1,0 +1,29 @@
+CREATE table {{ output_table_name }}
+WITH ( format = 'Parquet', parquet_compression = 'SNAPPY'{% if create_partitions -%}, partitioned_by = ARRAY['month_starting']{% endif -%}) AS
+WITH
+    ts_data AS
+    (
+        SELECT {{ ts_expressions }} FROM {{ ts_table }}
+    ),
+    ex_data AS
+    (
+        SELECT {{ ex_expressions }} FROM {{ ex_table }}
+    ){{ ',' if md_table }}
+{% if md_table -%}
+    md_data AS
+    (
+        SELECT {{ md_expressions }} FROM {{ md_table }}
+    )
+{% endif -%}
+SELECT {{ output_map }}
+FROM ts_data
+FULL JOIN ex_data
+    ON ts_data.identifier = ex_data.identifier
+        AND ts_data.isotime = ex_data.isotime
+{% if md_table -%}
+LEFT JOIN md_data
+    ON coalesce(ts_data.identifier, ex_data.identifier) = md_data.identifier
+{% endif -%}
+{% if create_partitions -%}
+WHERE from_iso8601_timestamp(coalesce(ts_data.isotime, ex_data.isotime)) >= parse_datetime('{{ earliest_date }}', 'YYYY-MM-dd HH:mm:ssZZ')
+{% endif -%}

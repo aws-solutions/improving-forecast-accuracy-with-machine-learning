@@ -11,25 +11,41 @@
 #  and limitations under the License.                                                                                 #
 # #####################################################################################################################
 
-from shared.Dataset.dataset_file import DatasetFile
-from shared.config import Config
-from shared.helpers import step_function_step
-from shared.status import Status
 
-
-@step_function_step
-def createdataset(event, context) -> (Status, str):
-    """
-    Create/ monitor Amazon Forecast dataset creation
-    :param event: lambda event
-    :param context: lambda context
-    :return: dataset status and dataset ARN
-    """
-    config = Config.from_sfn(event)
-    dataset_file = DatasetFile(event.get("dataset_file"), event.get("bucket"))
-
-    dataset = config.dataset(dataset_file)
-    if dataset.status == Status.DOES_NOT_EXIST:
-        dataset.create()
-
-    return dataset.status, dataset.arn
+SCHEMAS_DEF = {
+    "RETAIL": {
+        "fields": ["item_id", "timestamp", "demand"],
+        "identifier": "item_id",
+        "metric": "demand",
+    },
+    "CUSTOM": {
+        "fields": ["item_id", "timestamp", "target_value"],
+        "identifier": "item_id",
+        "metric": "target_value",
+    },
+    "INVENTORY_PLANNING": {
+        "fields": ["item_id", "timestamp", "demand"],
+        "identifier": "item_id",
+        "metric": "demand",
+    },
+    "EC2_CAPACITY": {
+        "fields": ["instance_type", "timestamp", "number_of_instances"],
+        "identifier": "instance_type",
+        "metric": "number_of_instances",
+    },
+    "WORK_FORCE": {
+        "fields": ["workforce_type", "timestamp", "workforce_demand"],
+        "identifier": "workforce_type",
+        "metric": "workforce_demand",
+    },
+    "WEB_TRAFFIC": {
+        "fields": ["item_id", "timestamp", "value"],
+        "identifier": "item_id",
+        "metric": "value",
+    },
+    "METRICS": {
+        "fields": ["metric_name", "timestamp", "metric_value"],
+        "identifier": "metric_name",
+        "metric": "metric_value",
+    },
+}

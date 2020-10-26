@@ -19,14 +19,19 @@ click under the BSD 3-Clause license
 coverage under the Apache License Version 2.0
 crhelper under the Apache License Version 2.0
 Jinja2 under the BSD 3-Clause license
+flaky under the Apache License Version 2.0
+matplotlib under the PSF license
 moto under the Apache License Version 2.0
+numpy under the BSD 3-Clause license
 packaging under the Apache License Version 2.0
 pandas under the BSD 3-Clause license
+PyAthena under the Massachusetts Institute of Technology (MIT) license
 pytest under the Massachusetts Institute of Technology (MIT) license
 pytest-cov under the Massachusetts Institute of Technology (MIT) license
 pytest-mock under the Massachusetts Institute of Technology (MIT) license
 pytest-env under the Massachusetts Institute of Technology (MIT) license
 PyYAML under the Massachusetts Institute of Technology (MIT) license
 requests under the Apache License Version 2.0
+tenacity under the Apache License Version 2.0
 
 The Apache License Version Version 2.0 is included in LICENSE.txt.

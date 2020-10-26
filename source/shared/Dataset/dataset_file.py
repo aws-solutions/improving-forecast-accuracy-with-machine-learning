@@ -14,7 +14,8 @@
 import json
 from datetime import datetime
 from functools import cached_property
-from os.path import split
+from os.path import split, join
+from urllib.parse import urlparse
 
 from shared.Dataset.dataset_type import DatasetType
 from shared.helpers import get_s3_client
@@ -39,6 +40,41 @@ class DatasetFile:
             self.data_type = DatasetType.TARGET_TIME_SERIES
 
         _, self.filename = split(key)
+
+    @classmethod
+    def from_s3_path(cls, s3_path):
+        """
+        Used to create a DatasetFile from a fully qualified S3 path
+        :param event: The S3 URL of of the dataset file
+        :return: DatasetFile
+        """
+        parsed = urlparse(s3_path, allow_fragments=False)
+        bucket = parsed.netloc
+        key = parsed.path.lstrip("/")
+        dsf = DatasetFile(bucket=bucket, key=key)
+        return dsf
+
+    @property
+    def s3_url(self):
+        return f"s3://{self.bucket}/{self.key}"
+
+    @property
+    def s3_prefix(self):
+        return "/".join(self.s3_url.split("/")[:-1]) + "/"
+
+    def copy(self, path: str, *args: str) -> str:
+        """
+        Copy this Datasetfile to another key <path>/<subpath>/<original_name> in the same bucket
+        :param path:
+        :param subpath:
+        :return: s3 key without filename or extension for the copied file
+        """
+        dest = join(path, *args, self.filename)
+
+        logger.info(f"copying {self.name} to s3://{self.bucket}/{dest}")
+        self.cli.copy({"Bucket": self.bucket, "Key": self.key}, self.bucket, dest)
+
+        return dest
 
     @property
     def name(self):

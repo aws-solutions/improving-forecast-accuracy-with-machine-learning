@@ -47,3 +47,38 @@ def test_dataset_frequency_str(valid_frequencies):
     for frequency in valid_frequencies:
         freq = DataFrequency(frequency=frequency)
         assert str(freq) == frequency
+
+
+def test_data_frequency_total_ordering(valid_frequencies):
+    assert len(valid_frequencies) == 10
+
+    for idx_1, f1 in enumerate(valid_frequencies):
+        for idx_2, f2 in enumerate(valid_frequencies):
+            freq1 = DataFrequency(frequency=f1)
+            freq2 = DataFrequency(frequency=f2)
+
+            if idx_1 > idx_2:
+                assert freq1 > freq2
+
+            if idx_1 < idx_2:
+                assert freq1 < freq2
+
+            if idx_1 == idx_2:
+                assert freq1 == freq2
+
+            if idx_1 != idx_2:
+                assert freq1 != freq2
+
+            if idx_1 <= idx_2:
+                assert freq1 <= freq2
+
+            if idx_1 >= idx_2:
+                assert freq1 >= freq2
+
+
+def test_invalid_data_frequency_comparison():
+    frequency = DataFrequency("1min")
+    invalid = "not_valid"
+
+    with pytest.raises(ValueError):
+        frequency > invalid

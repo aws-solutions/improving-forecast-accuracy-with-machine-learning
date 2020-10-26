@@ -27,10 +27,12 @@ from shared.DatasetGroup.dataset_group import DatasetGroup
 from shared.Forecast.forecast import Forecast
 from shared.Predictor.predictor import Predictor
 from shared.helpers import get_s3_client, get_sfn_client
+from shared.logging import get_logger
 
 DEFAULT_KEY = "Default"  # Config file defaults under 'Default' section
 DEFAULT_S3_KEY = "forecast-defaults.yaml"  # S3 bucket key for forecast defaults
 DEFAULT_SFN_KEY = "config"  # StepFunctions input path for config
+logger = get_logger(__name__)
 
 
 class ConfigNotFound(Exception):
@@ -44,22 +46,36 @@ class Config:
         self.s3 = get_s3_client()
         self.sfn = get_sfn_client()
 
-    def config_item(self, dataset_file: DatasetFile, item: str):
+    def config_item(self, dataset_file: DatasetFile, item: str, config_for=None):
         """
         Get a configuration item from the configured `config` for the dataset referenced by dataset_file
         :param dataset_file: The dataset file to use as override configuration
         :param item: The config item to get
         :return: The configured config item or default if an override is not specified.
         """
-        config = self.config.copy()
+        config = copy.deepcopy(self.config)
+        config_for = config_for if config_for else dataset_file.prefix
 
         # unroll the config for this dataset file type
         for key in config.keys():
-            for dataset in config.get(key).get("Datasets", []):
+            dataset_config = config.get(key).get("Datasets", [])
+            if isinstance(dataset_config, dict):
+                datasets_from = dataset_config.get("From")
+                if not datasets_from:
+                    raise ValueError(
+                        "datasets must be a list, or a dictionary with a key From: referencing another dataset configuration by name"
+                    )
+                dataset_config = config.get(datasets_from).get("Datasets", [])
+
+            # set 'Dataset' to the dataset matching the file uploaded
+            for dataset in dataset_config:
                 if dataset.get("DatasetType") == dataset_file.data_type:
                     config[key]["Dataset"] = dataset
 
-        override = config.get(dataset_file.prefix, {})
+            # ensure Datasets always has the full config
+            config[key]["Datasets"] = dataset_config
+
+        override = config.get(config_for, {})
         defaults = config.get(DEFAULT_KEY, {})
 
         config_filter = item.split(".")
@@ -148,19 +164,23 @@ class Config:
         required = self.required_datasets(dataset_file)
         dataset_templates = []
         for data_type in required:
-            dataset_file.data_type = data_type
+            dataset_file.data_type = DatasetType[data_type]
             ds = self.dataset(dataset_file)
             dataset_templates.append(ds)
 
         return dataset_templates
 
-    def dataset_group_domain(self, dataset_file: DatasetFile) -> DatasetDomain:
+    def dataset_group_domain(
+        self, dataset_file: DatasetFile, dataset_group_name: str = None
+    ) -> DatasetDomain:
         """
         Get the dataset group domain
         :param dataset_file: The dataset file to use
         :return: The dataset group domain
         """
-        domain = self.config_item(dataset_file, "DatasetGroup.Domain")
+        domain = self.config_item(
+            dataset_file, "DatasetGroup.Domain", dataset_group_name
+        )
         try:
             domain = DatasetDomain[domain]
         except KeyError as excinfo:
@@ -171,17 +191,36 @@ class Config:
             )
         return domain
 
-    def dataset_group(self, dataset_file: DatasetFile):
+    def dependent_dataset_groups(self, dataset_file: DatasetFile) -> List[DatasetGroup]:
+        """
+        Get the list of all dataset groups that use this dataset file
+        :param datset_file:
+        :return: The list of all dataset groups that use this dataset file
+        """
+        dataset_group_name = dataset_file.prefix
+        dependent_dsgs = [dataset_group_name]
+
+        for toplevel_item in self.config.keys():
+            datasets = self.config.get(toplevel_item).get("Datasets")
+            from_datasets = datasets.get("From") if isinstance(datasets, dict) else None
+
+            if from_datasets == dataset_group_name:
+                dependent_dsgs.append(toplevel_item)
+
+        return dependent_dsgs
+
+    def dataset_group(self, dataset_file: DatasetFile, dataset_group_name: str = None):
         """
         Get the dataset group
         :param dataset_file: The dataset file to use
+        :param dataset_group_name:
         :return: The dataset group
         """
 
-        dsg = DatasetGroup(
-            dataset_group_name=dataset_file.prefix,
-            dataset_domain=self.dataset_group_domain(dataset_file),
-        )
+        name = dataset_group_name if dataset_group_name else dataset_file.prefix
+        domain = self.dataset_group_domain(dataset_file, dataset_group_name)
+
+        dsg = DatasetGroup(dataset_group_name=name, dataset_domain=domain,)
 
         ds = self.dataset(dataset_file)
         if ds.dataset_domain != dsg.dataset_group_domain:
@@ -190,6 +229,32 @@ class Config:
             )
 
         return dsg
+
+    def dataset_groups(self, dataset_file: DatasetFile) -> List[DatasetGroup]:
+        """
+        Get the dataset groups that depend on this file
+        :param dataset_file: The dataset file to use
+        :return: The dataset Groups
+        """
+        dsg_names = self.dependent_dataset_groups(dataset_file)
+        dsgs = []
+
+        logger.info("%s depend on %s" % (", ".join(dsg_names), dataset_file.prefix))
+        for dsg_name in dsg_names:
+            dsg = DatasetGroup(
+                dataset_group_name=dsg_name,
+                dataset_domain=self.dataset_group_domain(dataset_file),
+            )
+
+            ds = self.dataset(dataset_file)
+            if ds.dataset_domain != dsg.dataset_group_domain:
+                raise ValueError(
+                    f"The dataset group domain ({dsg.dataset_group_domain}) and dataset domain ({ds.dataset_domain}) must match."
+                )
+
+            dsgs.append(dsg)
+
+        return dsgs
 
     def dataset_import_job(self, dataset_file: DatasetFile):
         """
@@ -234,15 +299,17 @@ class Config:
 
         return datasets
 
-    def predictor(self, dataset_file: DatasetFile):
+    def predictor(self, dataset_file: DatasetFile, dataset_group_name: str):
         """
         Get the predictor
         :param dataset_file: The dataset file to use
+        :param dataset_group_name: The name of the dataset group this predictor is being generated for
         :return: The predictor
         """
-        predictor_config = self.config_item(dataset_file, "Predictor")
-
-        dsg = self.dataset_group(dataset_file)
+        predictor_config = self.config_item(
+            dataset_file, "Predictor", dataset_group_name
+        )
+        dsg = self.dataset_group(dataset_file, dataset_group_name)
 
         pred = Predictor(
             dataset_file=dataset_file, dataset_group=dsg, **predictor_config
@@ -250,16 +317,16 @@ class Config:
 
         return pred
 
-    def forecast(self, dataset_file: DatasetFile):
+    def forecast(self, dataset_file: DatasetFile, dataset_group_name: str):
         """
         Get the forecast
         :param dataset_file: The dataset file to use
         :return: The forecast
         """
-        forecast_config = self.config_item(dataset_file, "Forecast")
+        forecast_config = self.config_item(dataset_file, "Forecast", dataset_group_name)
 
-        dsg = self.dataset_group(dataset_file)
-        pred = self.predictor(dataset_file)
+        dsg = self.dataset_group(dataset_file, dataset_group_name)
+        pred = self.predictor(dataset_file, dataset_group_name)
 
         fcst = Forecast(predictor=pred, dataset_group=dsg, **forecast_config)
 
@@ -337,8 +404,22 @@ class Config:
             )
 
     def _valid_datasets(self, config_key, resource, config_data, errors):
+        if isinstance(config_data, dict):
+            from_datasets = config_data.get("From", None)
+            config_data = copy.deepcopy(
+                self.config.get(from_datasets, {}).get("Datasets", [])
+            )
+
+            if not config_data:
+                errors.append(
+                    f"Datasets for {config_key} references {from_datasets} but no config found for datasets in that group"
+                )
+                return  # can do no further validation here.
+
         if not isinstance(config_data, list):
-            errors.append(f"Datasets for {config_key} must be a list")
+            errors.append(
+                f'Datasets for {config_key} must be a list or a dictionary containing the "From" key'
+            )
 
         for dataset_config in config_data:
             dataset_config.pop("TimestampFormat", None)

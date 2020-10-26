@@ -124,7 +124,7 @@ class Forecast(ForecastClient):
 
     def _latest_timestamp(self):
         latest_dataset_timestamp = self._dataset_group.latest_timestamp
-        latest_predictor_timestamp = self._predictor.latest_timestamp
+        latest_predictor_timestamp = self._predictor.latest_timestamp()
         latest_timestamp = max(latest_dataset_timestamp, latest_predictor_timestamp)
         return latest_timestamp
 
@@ -149,6 +149,30 @@ class Forecast(ForecastClient):
         except self.cli.exceptions.ResourceInUseException as excinfo:
             logger.debug("Forecast %s is updating: %s" % (forecast_name, str(excinfo)))
 
+    def export_history(self, status="ACTIVE"):
+        """
+        Get this Predictor history from the Amazon Forecast service.
+        :param status: The Status of the predictor(s) to return
+        :return: List of past predictors, in descending order by creation time
+        """
+        past_exports = []
+        filters = [
+            {"Condition": "IS", "Key": "ForecastArn", "Value": self.arn,},
+            {"Condition": "IS", "Key": "Status", "Value": status},
+        ]
+
+        paginator = self.cli.get_paginator("list_forecast_export_jobs")
+        iterator = paginator.paginate(Filters=filters)
+        for page in iterator:
+            past_exports.extend(page.get("ForecastExportJobs", []))
+
+        past_exports = sorted(
+            past_exports, key=itemgetter("CreationTime"), reverse=True
+        )
+        logger.debug("there are {%d} exports: %s" % (len(past_exports), past_exports))
+
+        return past_exports
+
     def export(self, dataset_file: DatasetFile) -> Status:
         """
         Export/ check on an export of this Forecast
@@ -159,7 +183,9 @@ class Forecast(ForecastClient):
             raise ValueError("Forecast does not yet exist - cannot perform export.")
 
         latest_timestamp = self._latest_timestamp()
-        export_name = f"export_{dataset_file.prefix}_{latest_timestamp}"
+        export_name = (
+            f"export_{self._dataset_group.dataset_group_name}_{latest_timestamp}"
+        )
 
         past_export = Export()
         try:

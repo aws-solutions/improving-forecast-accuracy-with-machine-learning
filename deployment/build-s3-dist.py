@@ -79,6 +79,8 @@ class BuildEnvironment:
         source_bucket_name,
         solution_name,
         version_code,
+        dist_account_id,
+        dist_quicksight_namespace,
         dev_mode,
         template_dir=None,
     ):
@@ -89,11 +91,15 @@ class BuildEnvironment:
         self._source_bucket_name = source_bucket_name
         self._solution_name = solution_name
         self._version_code = version_code
+        self._dist_account_id = dist_account_id
+        self._dist_quicksight_namespace = dist_quicksight_namespace
         self._deployment_id = uuid().hex if dev_mode else version_code
 
         logger.info("build environment solution: %s" % solution_name)
         logger.info("build environment bucket: %s" % source_bucket_name)
         logger.info("build environment version: %s" % version_code)
+        logger.info("build environment dist_account_id: %s" % dist_account_id)
+        logger.info("build environment dist_quicksight_namespace: %s" % dist_quicksight_namespace)
         logger.info("build environment deployment ID: %s" % self._deployment_id)
 
         # set up build paths
@@ -170,6 +176,16 @@ class BuildEnvironment:
     def version_code(self):
         """Solution version code"""
         return self._version_code
+
+    @property
+    def dist_account_id(self):
+        """AWS account id of the account providing the Amazon QuickSight template"""
+        return self._dist_account_id
+
+    @property
+    def dist_quicksight_namespace(self):
+        """Namespace used in separating Amazon QuickSight templates used as the source template"""
+        return self._dist_quicksight_namespace
 
     @property
     def deployment_id(self):
@@ -356,12 +372,24 @@ class GlobalAssetPackager(BaseAssetPackager):
             loader=macro_loader, variable_start_string="%%", variable_end_string="%%"
         )
         template = j2env.get_template(f"{self.build_env.solution_name}.template")
+        source_template_name = '_'.join([
+            self.build_env.dist_quicksight_namespace,
+            self.build_env.solution_name,
+            self.build_env.version_code.replace('.', '_'),
+        ])
+        quicksight_source = ':'.join([
+                "arn:aws:quicksight:us-east-1",
+                self.build_env.dist_account_id,
+                f"template/{source_template_name}",
+            ])
+        logger.info(f"Constructed arn for quicksight_source: %s" % quicksight_source)
         rendered = template.render(
             VERSION=self.build_env.version_code,
             BUCKET_NAME=self.build_env.source_bucket_name,
             SOLUTION_NAME=self.build_env.solution_name,
             NOTEBOOKS='",'.join(os.listdir(self.build_env.notebook_dir)),
             DEPLOYMENT_ID=self.build_env.deployment_id,
+            QUICKSIGHT_SOURCE=quicksight_source,
         )
 
         # output the rendered template
@@ -384,6 +412,16 @@ class GlobalAssetPackager(BaseAssetPackager):
 @click.option("--solution-name", help="The name of the solution.", required=True)
 @click.option("--version-code", help="The version of the package.", required=True)
 @click.option(
+    "--dist-account-id",
+    help="The AWS account id from which the Amazon QuickSight templates should be sourced for Amazon QuickSight Analysis and Dashboard creation.",
+    required=True
+)
+@click.option(
+    "--dist-quicksight-namespace",
+    help="The namespace (template prefix) to use together with --dist-account-id from which the Amazon QuickSight template should be sourced for Amazon QuickSight Analysis and Dashboard creation.",
+    required=True
+)
+@click.option(
     "--log-level",
     help="The log level to use",
     default="INFO",
@@ -402,7 +440,9 @@ class GlobalAssetPackager(BaseAssetPackager):
     is_flag=True,
 )
 def package_assets(
-    source_bucket_name, solution_name, version_code, log_level, dev, sync
+    source_bucket_name, solution_name, version_code,
+    dist_account_id, dist_quicksight_namespace,
+    log_level, dev, sync
 ):
     """Builds the global and regional S3 assets for this project"""
 
@@ -413,6 +453,8 @@ def package_assets(
         source_bucket_name=source_bucket_name,
         solution_name=solution_name,
         version_code=version_code,
+        dist_account_id=dist_account_id,
+        dist_quicksight_namespace=dist_quicksight_namespace,
         dev_mode=dev,
     )
     build_env.clean()

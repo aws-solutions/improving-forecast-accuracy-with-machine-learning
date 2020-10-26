@@ -13,13 +13,12 @@
 
 from datetime import datetime, timezone, timedelta
 from operator import itemgetter
-from typing import Union
+from typing import Union, Dict
 
 from shared.Dataset.dataset_file import DatasetFile
 from shared.DatasetGroup.dataset_group import (
     DatasetGroup,
     LATEST_DATASET_UPDATE_FILENAME_TAG,
-    LATEST_DATASET_UPDATE_FILE_ETAG_TAG,
 )
 from shared.helpers import ForecastClient
 from shared.logging import get_logger
@@ -93,6 +92,71 @@ class Predictor(ForecastClient):
         )
         return past_predictors
 
+    def _status_most_recent_update(self):
+        last_updated_file = self.get_service_tag_for_arn(
+            self._dataset_group.arn, LATEST_DATASET_UPDATE_FILENAME_TAG
+        )
+        logger.debug(
+            "status check: triggered by file %s, latest update was %s"
+            % (self._dataset_file.filename, last_updated_file)
+        )
+        if self._dataset_file.filename == last_updated_file:
+            return True
+        else:
+            return False
+
+    def _status_last_predictor(self) -> Union[None, Dict]:
+        past_predictors = self.history()
+        if not past_predictors:
+            logger.debug("status check: no past predictors found")
+            return None
+
+        logger.debug("status check: previous predictor was found")
+        last_predictor = self.cli.describe_predictor(
+            PredictorArn=past_predictors[0].get("PredictorArn")
+        )
+
+        if Status[last_predictor.get("Status")].failed:
+            logger.info(
+                "status check: previous predictor has failed status - attempt to recreate"
+            )
+            return None
+
+        return last_predictor
+
+    def _status_predictor_too_old(self, past_status: Dict) -> bool:
+        last_modified = past_status.get("LastModificationTime")
+
+        # check if (at least one of) the dataset files in this update are newer than the last predictor modification time
+        datasets = self._dataset_group.datasets
+        datasets_updated = False
+        for dataset in datasets:
+            dataset_last_modified = dataset.get("LastModificationTime")
+            if dataset_last_modified > last_modified:
+                datasets_updated = True
+                logger.debug("status check: dataset %s newer than predictor")
+
+        if not datasets_updated:
+            logger.warning(
+                "status check: no relevant dataset updates detected - did you mean to add new data?"
+            )
+            return False
+
+        # check if the new dataset updates should trigger a predictor update
+        now = datetime.now(timezone.utc)
+        max_age_s = self._max_age_s
+        max_age_d = now - timedelta(seconds=max_age_s)
+
+        # we only have to check the max age if the data has actually changed within the window
+        if last_modified < max_age_d:
+            logger.info(
+                "status check: predictor has surpassed max allowed age of %s seconds",
+                max_age_s,
+            )
+            return True
+        else:
+            return False
+
     @property
     def status(self) -> Status:
         """
@@ -102,68 +166,25 @@ class Predictor(ForecastClient):
         """
 
         # this ensures that only the last file uploaded will trigger predictor generation
-        last_updated_file = self.get_service_tag_for_arn(
-            self._dataset_group.arn, LATEST_DATASET_UPDATE_FILENAME_TAG
-        )
-        last_updated_etag = self.get_service_tag_for_arn(
-            self._dataset_group.arn, LATEST_DATASET_UPDATE_FILE_ETAG_TAG
-        )
-        logger.debug(
-            "last updated file was %s with ETag %s"
-            % (last_updated_file, last_updated_etag)
-        )
-        if (
-            self._dataset_file.filename == last_updated_file
-            and self._dataset_file.etag == last_updated_etag
-        ):
-            logger.info(
-                "this state machine execution can continue through predictor and forecast creation"
-            )
-        else:
-            logger.info(
-                "this state machine execution cannot continue through predictor and forecast creation"
-            )
+        if not self._status_most_recent_update():
             raise NotMostRecentUpdate
 
-        # check if we can actually update (dataset group is ready)
+        # check if dataset group is ready (all datasets are imported)
         # this raises exception DatasetsImporting if one or more datasets is importing
-        self._dataset_group.ensure_ready()
+        dataset_group_ready = self._dataset_group.ready()
+        if dataset_group_ready:
+            logger.info("status check: all datasets have been successfully imported")
 
-        # check if a predictor has been created
-        past_predictors = self.history()
-        if not past_predictors:
-            logger.debug("No past predictors found")
+        past_status = self._status_last_predictor()
+        if not past_status:
             return Status.DOES_NOT_EXIST
 
-        logger.debug("predictor can update")
-        past_status = self.cli.describe_predictor(
-            PredictorArn=past_predictors[0].get("PredictorArn")
-        )
-
-        # regenerate the predictor if our past status was failed - this allows for the user to replace
-        # a dataset with errors with a new dataset, and a new predictor to be generated.
-        if Status[past_status.get("Status")].failed:
-            logger.info(
-                "a last predictor failed to create - will attempt to create again"
-            )
+        # check if a predictor has been successfully created previously
+        too_old = self._status_predictor_too_old(past_status)
+        if too_old:
             return Status.DOES_NOT_EXIST
 
-        # regenerate the predictor if our predictor has aged out and we have new data
-        last_modified = past_status.get("CreationTime")
-
-        now = datetime.now(timezone.utc)
-        max_age_s = self._max_age_s
-        max_age_d = now - timedelta(seconds=max_age_s)
-
-        if last_modified < max_age_d:
-            logger.info(
-                "predictor has surpassed max age - will attempt to create again"
-            )
-            return Status.DOES_NOT_EXIST
-
-        # otherwise, return the actual status of the most recent predictor -
-        # we do not have to regenerate it
-        logger.info("predictor status is %s" % past_status.get("Status"))
+        logger.info("status check: predictor status is %s" % past_status.get("Status"))
         return Status[past_status.get("Status")]
 
     def create(self):
@@ -181,9 +202,10 @@ class Predictor(ForecastClient):
         try:
             self.cli.create_predictor(**self._predictor_params)
         except self.cli.exceptions.ResourceAlreadyExistsException:
-            logger.debug("Predictor %s is already creating" % predictor_name)
+            logger.debug(
+                "Predictor %s is already creating, or already exists" % predictor_name
+            )
 
-    @property
     def latest_timestamp(self, format="%Y_%m_%d_%H_%M_%S"):
         past_predictors = self.history()
         latest_predictor_modified = max(

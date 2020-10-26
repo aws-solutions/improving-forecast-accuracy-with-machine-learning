@@ -1,0 +1,139 @@
+---
+
+output: 5min
+
+no_sales_at_night: &no_sales_at_night [0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0]
+higher_weekends: &higher_weekends [1,1,1,1,1,2,1.5]
+higher_holiday: &higher_holidays [0.5,0.5,1,1,1,1,1,1,1,1,1.5,2.5]
+
+# this retailer sells penne, two different brands of marinara, and one brand of alfredo sauce across two locations
+models:
+  # ottawa location
+  - name: penne x
+    rate: 60
+    per: D
+    dimensions:
+      - name: store
+        value: ottawa
+    metadata:
+      - name: brand
+        value: brand x
+    seasonalities:
+      hourly: *no_sales_at_night
+      daily: *higher_weekends
+      monthly: *higher_holidays
+    dependencies:
+      marinara x:
+        chance: .5
+      marinara y:
+        chance: .3
+      alfredo y:
+        chance: .9
+
+  - name: marinara x
+    rate: 40
+    per: D
+    dimensions:
+      - name: store
+        value: ottawa
+    metadata:
+      - name: brand
+        value: brand x
+    seasonalities:
+      hourly: *no_sales_at_night
+      daily: *higher_weekends
+      monthly: *higher_holidays
+
+  - name: marinara y
+    rate: 40
+    per: D
+    dimensions:
+      - name: store
+        value: ottawa
+    metadata:
+      - name: brand
+        value: brand y
+    seasonalities:
+      hourly: *no_sales_at_night
+      daily: *higher_weekends
+      monthly: *higher_holidays
+
+  - name: alfredo y
+    rate: 50
+    per: D
+    dimensions:
+      - name: store
+        value: ottawa
+    metadata:
+      - name: brand
+        value: brand y
+    seasonalities:
+      hourly: *no_sales_at_night
+      daily: *higher_weekends
+      monthly: *higher_holidays
+
+  # kanata location
+  - name: penne x
+    rate: 40
+    per: D
+    dimensions:
+      - name: store
+        value: kanata
+    metadata:
+      - name: brand
+        value: brand x
+    seasonalities:
+      hourly: *no_sales_at_night
+      daily: *higher_weekends
+      monthly: *higher_holidays
+    dependencies:
+      marinara x:
+        chance: .4
+      marinara y:
+        chance: .2
+      alfredo y:
+        chance: .99
+
+  - name: marinara x
+    rate: 15
+    per: D
+    dimensions:
+      - name: store
+        value: kanata
+    metadata:
+      - name: brand
+        value: brand x
+    seasonalities:
+      hourly: *no_sales_at_night
+      daily: *higher_weekends
+      monthly: *higher_holidays
+
+  - name: marinara y
+    rate: 10
+    per: D
+    dimensions:
+      - name: store
+        value: kanata
+    metadata:
+      - name: brand
+        value: brand y
+    seasonalities:
+      hourly: *no_sales_at_night
+      daily: *higher_weekends
+      monthly: *higher_holidays
+
+  - name: alfredo y
+    rate: 20
+    per: D
+    dimensions:
+      - name: store
+        value: kanata
+    metadata:
+      - name: brand
+        value: brand y
+        min: 2
+        max: 3
+    seasonalities:
+      hourly: *no_sales_at_night
+      daily: *higher_weekends
+      monthly: *higher_holidays

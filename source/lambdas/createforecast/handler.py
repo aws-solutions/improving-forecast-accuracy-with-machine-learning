@@ -30,8 +30,9 @@ def createforecast(event, context):
     """
     config = Config.from_sfn(event)
     dataset_file = DatasetFile(event.get("dataset_file"), event.get("bucket"))
+    dataset_group_name = event.get("dataset_group_name")
 
-    forecast = config.forecast(dataset_file)
+    forecast = config.forecast(dataset_file, dataset_group_name)
     tracked = forecast
 
     if forecast.status == Status.DOES_NOT_EXIST:

@@ -12,6 +12,7 @@
 # #####################################################################################################################
 
 from operator import itemgetter
+from typing import Union
 
 from botocore.exceptions import ClientError
 
@@ -53,6 +54,9 @@ class Dataset(ForecastClient):
             self._params["DataFrequency"] = str(self._data_frequency.frequency)
 
         super().__init__(resource="dataset", **self._params)
+
+    def __repr__(self):
+        return f'Dataset(dataset_name="{self._dataset_name}", dataset_type="{self._dataset_type}", dataset_domain="{self._dataset_domain}")'
 
     @property
     def arn(self) -> str:
@@ -121,6 +125,22 @@ class Dataset(ForecastClient):
         return dataset_status
 
     @property
+    def timestamp_format(self) -> Union[str, None]:
+        """
+        Get the most recent import job's timestamp format
+        :return:
+        """
+        imports = self.imports
+        if not imports:
+            return None
+        latest_import = imports[0]
+
+        latest_import_details = self.cli.describe_dataset_import_job(
+            DatasetImportJobArn=latest_import.get("DatasetImportJobArn")
+        )
+        return latest_import_details.get("TimestampFormat")
+
+    @property
     def imports(self):
         """
         Get the history of dataset imports for this dataset from the Amazon Forecast service.
@@ -130,7 +150,7 @@ class Dataset(ForecastClient):
         iterator = paginator.paginate(
             Filters=[
                 {"Condition": "IS", "Key": "DatasetArn", "Value": self.arn},
-                {"Condition": "IS", "Key": "Status", "Value": "Active"},
+                {"Condition": "IS", "Key": "Status", "Value": "ACTIVE"},
             ]
         )
 
