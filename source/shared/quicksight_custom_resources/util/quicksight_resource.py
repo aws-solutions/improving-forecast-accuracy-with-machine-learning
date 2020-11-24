@@ -29,7 +29,11 @@ class ResourceSubTypeError(ValueError):
 
 
 class QuickSightFailure(Exception):
-    def __init__(self, msg='failed to create QuickSight resources - it is likely that permissions have not yet been granted for QuickSight to access Athena, or for QuickSight to read/ write access to your Athena S3 query results bucket', *args):
+    def __init__(
+        self,
+        msg="failed to create QuickSight resources - it is likely that permissions have not yet been granted for QuickSight to access Athena, or for QuickSight to read/ write access to your Athena S3 query results bucket",
+        *args,
+    ):
         super().__init__(msg, *args)
 
 

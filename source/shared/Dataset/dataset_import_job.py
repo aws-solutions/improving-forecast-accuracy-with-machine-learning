@@ -104,14 +104,20 @@ class DatasetImportJob(ForecastClient):
         # if the data is active, check if it should be updated
         if previous_status.get("Status") == Status.ACTIVE:
             past_etag = self.get_service_tag_for_arn(last_import_arn, "SolutionETag")
-            if past_etag and past_etag != self.dataset_file.etag:
-                logger.info("Dataset update detected (ETag does not match)")
-                return Status.DOES_NOT_EXIST
 
-            stats = previous_status.get("FieldStatistics")
-            counts = [stats[item].get("Count") for item in stats]
-            if self.dataset_file.size not in counts:
-                logger.info("Dataset update detected (File line counts do not match)")
+            # always re-import data if upgrading from 1.0 (adds the etag tag)
+            # always re-import data if upgrading from 1.1 with a multipart etag (large datasets)
+            if not past_etag:
+                logger.info(
+                    "no signature found for this dataset - marking as DOES_NOT_EXIST to trigger import"
+                )
+                return Status.DOES_NOT_EXIST  # re-import data to
+
+            # always re-import the data if the signature has changed
+            if past_etag != self.dataset_file.etag:
+                logger.info(
+                    "signature found for this dataset, but it does not match the current imported dataset signature - marking as DOES_NOT_EXIST to trigger import"
+                )
                 return Status.DOES_NOT_EXIST
 
         return Status[previous_status.get("Status")]

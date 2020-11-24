@@ -70,7 +70,7 @@ def notification(event: dict, context):
     # Start the AWS Step Function automation of Amazon Forecast
     sfn = get_sfn_client()
     sfn.start_execution(
-        stateMachineArn=environ.get("STEP_FUNCTIONS_ARN"),
+        stateMachineArn=environ.get("STATE_MACHINE_ARN"),
         name=evt.event_id,
         input=json.dumps(state_input),
     )

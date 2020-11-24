@@ -15,7 +15,8 @@ from tenacity import retry_if_exception_type, retry, stop_after_attempt
 from shared.helpers import get_quicksight_client
 from shared.logging import get_logger
 from shared.quicksight_custom_resources.util.quicksight_resource import (
-    QuickSightResource, QuickSightFailure,
+    QuickSightResource,
+    QuickSightFailure,
 )
 from shared.quicksight_custom_resources.util.source_entity import SourceEntity
 

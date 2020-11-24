@@ -186,11 +186,15 @@ class DatasetGroup(ForecastClient):
         msg = ""
         for dataset in datasets:
             imports = []
-            paginator = self.cli.get_paginator('list_dataset_import_jobs')
+            paginator = self.cli.get_paginator("list_dataset_import_jobs")
             iterator = paginator.paginate(
                 Filters=[
-                    {"Condition": "IS", "Key": "DatasetArn", "Value": dataset['DatasetArn']},
-                    {"Condition": "IS", "Key": "Status", "Value": "ACTIVE"}
+                    {
+                        "Condition": "IS",
+                        "Key": "DatasetArn",
+                        "Value": dataset["DatasetArn"],
+                    },
+                    {"Condition": "IS", "Key": "Status", "Value": "ACTIVE"},
                 ]
             )
             for page in iterator:
@@ -201,7 +205,7 @@ class DatasetGroup(ForecastClient):
             if len(imports) == 0:
                 msg += f"no ACTIVE datasets for {dataset.get('DatasetArn')}\n"
             else:
-                status = imports[0].get('Status')
+                status = imports[0].get("Status")
                 if status != "ACTIVE":
                     msg += f"no ACTIVE dataset for {dataset.get('DatasetArn')} - status was {status}\n"
         if msg:

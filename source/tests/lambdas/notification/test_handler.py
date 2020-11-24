@@ -56,7 +56,7 @@ def test_notification(mock_config, s3_event, mocker):
     handler.notification(s3_event, None)
 
     args, kwargs = client_mock().start_execution.call_args
-    assert kwargs.get("stateMachineArn") == os.getenv("STEP_FUNCTIONS_ARN")
+    assert kwargs.get("stateMachineArn") == os.getenv("STATE_MACHINE_ARN")
     assert "test-key_target_time_series_" in kwargs.get("name")
     assert "input" in kwargs.keys()
 

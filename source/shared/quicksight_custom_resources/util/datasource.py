@@ -62,11 +62,13 @@ class DataSource(QuickSightResource):
         quicksight_client.describe_data_source
         data_source_parameters = {"AthenaParameters": {"WorkGroup": self.workgroup}}
         try:
-            quicksight_client.update_data_source(AwsAccountId=self.aws_account_id,
-                                                 DataSourceId=self.id,
-                                                 Name=self.name,
-                                                 DataSourceParameters = data_source_parameters,
-                                                 SslProperties = {"DisableSsl": False})
+            quicksight_client.update_data_source(
+                AwsAccountId=self.aws_account_id,
+                DataSourceId=self.id,
+                Name=self.name,
+                DataSourceParameters=data_source_parameters,
+                SslProperties={"DisableSsl": False},
+            )
         except quicksight_client.exceptions.ConflictException as exc:
             logger.debug(str(exc))
 

@@ -1,14 +1,26 @@
 # Improving Forecast Accuracy with Machine Learning
 
-The Improving Forecast Accuracy with Machine Learning solution is designed to help organizations that rely on generating accurate forecasts and store historical demand time series data. Whether organizations are developing forecasts for the first time, or optimizing their current pipeline, this solution will reduce the overhead cost of generating forecasts from time series data, related time series data, and item metadata.
+The Improving Forecast Accuracy with Machine Learning solution is designed to help organizations that rely on generating 
+accurate forecasts and store historical demand time series data. Whether organizations are developing forecasts for the 
+first time, or optimizing their current pipeline, this solution will reduce the overhead cost of generating forecasts 
+from time series data, related time series data, and item metadata.
 
-This solution supports multiple forecasts and per-forecast parameter configuration in order to reduce the repetitive task of generating multiple forecasts. The use of an AWS Step Function eliminates the undifferentiated heavy lifting of creating Amazon Forecast datasets, dataset groups, predictors, and forecasts—allowing developers and data scientists to focus on the accuracy of their forecasts. Amazon Forecast predictors and forecasts can be updated as item demand data, related timeseries data, and item metadata are refreshed, which allows for A/B testing against different sets of related timeseries data and item metadata. 
+This solution supports multiple forecasts and per-forecast parameter configuration in order to reduce the repetitive 
+task of generating multiple forecasts. The use of an AWS Step Function eliminates the undifferentiated heavy lifting of
+creating Amazon Forecast datasets, dataset groups, predictors, and forecasts—allowing developers and data scientists to
+focus on the accuracy of their forecasts. Amazon Forecast predictors and forecasts can be updated as item demand data, 
+related timeseries data, and item metadata are refreshed, which allows for A/B testing against different sets of related
+timeseries data and item metadata. 
 
-As predictors are generated, their accuracy is tracked over time in Amazon CloudWatch, which allows users to track forecast accuracy and identify drifts over multiple forecasts and parameter-tuning configurations. 
+As predictors are generated, their accuracy is tracked over time in Amazon CloudWatch, which allows users to track
+forecast accuracy and identify drifts over multiple forecasts and parameter-tuning configurations. 
 
-To better capture and alert users of data quality issues, a configurable alert function can also be deployed with Amazon Simple Notification Service (Amazon SNS). This notifies the user on success and failure of the automated forecasting job, reducing the need for users to monitor their forecast workflow. 
+To better capture and alert users of data quality issues, a configurable alert function can also be deployed with Amazon
+Simple Notification Service (Amazon SNS). This notifies the user on success and failure of the automated forecasting 
+job, reducing the need for users to monitor their forecast workflow. 
 
-This guide provides infrastructure and configuration information for planning and deploying the solution in the AWS Cloud.
+This guide provides infrastructure and configuration information for planning and deploying the solution in the AWS 
+Cloud.
 
 
 ## Architecture
@@ -16,18 +28,37 @@ The following describes the architecture of the solution:
 
 ![architecture](source/images/Forecast.jpg)
 
-The AWS CloudFormation template deploys the resources required to automate your Amazon Forecast usage and deployments. Based on the capabilities of the solution, the architecture is divided into three parts: Data Preparation, Forecasting, and Data Visualization. The template includes the includes the following components:
+The AWS CloudFormation template deploys the resources required to automate your Amazon Forecast usage and deployments.
+Based on the capabilities of the solution, the architecture is divided into three parts: Data Preparation, Forecasting,
+and Data Visualization. The template includes the following components:
 
-- An Amazon Simple Storage Service (Amazon S3) bucket for Amazon Forecast configuration where you specify configuration settings for your dataset groups, datasets, predictors and forecasts, as well as the datasets themselves.
+- An Amazon Simple Storage Service (Amazon S3) bucket for Amazon Forecast configuration where you specify configuration
+settings for your dataset groups, datasets, predictors and forecasts, as well as the datasets themselves.
 - An Amazon S3 event notification that triggers when new datasets are uploaded to the related Amazon S3 bucket.
-- An AWS Step Functions State Machine. This combines a series of AWS Lambda functions that build, train. and deploy your Machine Learning (ML) models in Amazon Forecast.
-- An Amazon Simple Notification Service (Amazon SNS) topic and email subscription that notify an administrator user with the results of the AWS Step Function.
-- An optional Amazon SageMaker Notebook Instance that data scientists and developers can use to prepare and process data, and evaluate your Forecast output.
+- An AWS Step Functions State Machine. This combines a series of AWS Lambda functions that build, train. and deploy your
+Machine Learning (ML) models in Amazon Forecast.
+- An Amazon Simple Notification Service (Amazon SNS) topic and email subscription that notify an administrator user with
+the results of the AWS Step Function.
+- An optional Amazon SageMaker Notebook Instance that data scientists and developers can use to prepare and process
+data, and evaluate your Forecast output.
+
+**Note**: From v1.2.0, all AWS CloudFormation template resources are created by the [AWS CDK](https://aws.amazon.com/cdk/) 
+and [AWS Solutions Constructs](https://aws.amazon.com/solutions/constructs/). Stateful CloudFormation template resources 
+maintain the same logical ID comparing to v1.2.0, making the solution upgradable in place.
+
+### AWS CDK Constructs 
+[AWS CDK Solutions Constructs](https://aws.amazon.com/solutions/constructs/) make it easier to consistently create
+well-architected applications. All AWS Solutions Constructs are reviewed by AWS and use best practices established by 
+the AWS Well-Architected Framework. This solution uses the following AWS CDK Solutions Constructs: 
+
+- [aws-lambda-sns](https://docs.aws.amazon.com/solutions/latest/constructs/aws-lambda-sns.html)
 
 
 ## Getting Started
 
-You can launch this solution with one click from [AWS Solutions Implementations](https://aws.amazon.com/solutions/implementations/improving-forecast-accuracy-with-machine-learning/). To customize the solution, or to contribute to the solution, follow the steps below:
+You can launch this solution with one click from [AWS Solutions Implementations](https://aws.amazon.com/solutions/implementations/improving-forecast-accuracy-with-machine-learning/). 
+
+To customize the solution, or to contribute to the solution, follow the steps below:
 
 ## Prerequisites
 The following procedures assumes that all of the OS-level configuration has been completed. They are:
@@ -43,82 +74,19 @@ Clone this git repository
 
 ## 2. Build the solution for deployment
 
-Prepare a Python virtual environment:
-```
-# ensure Python 3 and virtualenv are installed
-cd <repository_name>
-virtualenv .venv
-source .venv/bin/activate
-pip install -r source/requirements-build-and-test.txt
-```
+Follow the steps in `source/infrastructure/README.md` ([here](source/infrastructure/README.md)) to use CDK to deploy the
+solution
 
-Build the distributable (using the above configured Python virtual environment):
-```
-export DIST_OUTPUT_BUCKET=my-bucket-name
-export SOLUTION_NAME=my-solution-name
-export VERSION=my-version
-export DIST_ACCOUNT_ID=<my-account-id>
-export DIST_QUICKSIGHT_NAMESPACE=my-solution
-cd ./deployment
-chmod +x ./build-s3-dist.py
-./build-s3-dist.py \
-    --source-bucket-name $DIST_OUTPUT_BUCKET \
-    --solution-name $SOLUTION_NAME \
-    --version-code $VERSION \
-    --dist-account-id $DIST_ACCOUNT_ID \
-    --dist-quicksight-namespace $DIST_QUICKSIGHT_NAMESPACE
-```
+## 3. Test/ Demo the Solution
 
-* Parameter details
-```
-$DIST_OUTPUT_BUCKET - This is the global name of the distribution. For the bucket name, the AWS Region is added
-    to the global name (example: 'my-bucket-name-us-east-1') to create a regional bucket. The lambda artifact
-    should be uploaded to the regional buckets for the CloudFormation template to pick it up for deployment.
-$SOLUTION_NAME - The name of This solution (example: improving-forecast-accuracy-with-machine-learning)
-$VERSION - The version number of the change
-$DIST_ACCOUNT_ID - The AWS account id from which the Amazon QuickSight templates should be sourced for Amazon
-    QuickSight Analysis and Dashboard creation
-$DIST_QUICKSIGHT_NAMESPACE - The namespace (template prefix) to use together with DIST_ACCOUNT_ID from which the
-    Amazon QuickSight template should be sourced for Amazon QuickSight Analysis and Dashboard creation
-```
-
-> **Notes**: The _build-s3-dist_ script expects the bucket name as one of its parameters, and this value should not include the region suffix.
-
-## 3. Upload deployment assets to your Amazon S3 buckets
-
-Create the CloudFormation bucket defined above, as well as a regional bucket in the region you wish to deploy. 
-The CloudFormation template is configured to pull the Lambda deployment packages from Amazon S3 bucket in the region the template is being launched in. Create a bucket in the desired region with the region name appended to the name of the bucket. eg: for us-east-1 create a bucket named: ```my-bucket-us-east-1```. 
-
-For example:
-
-```bash 
-aws s3 mb s3://my-bucket-name --region us-east-1
-aws s3 mb s3://my-bucket-name-us-east-1 --region us-east-1
-```
-
-Copy the built S3 assets to your S3 buckets: 
-
-```
-aws s3 sync ./global-s3-assets s3://$DIST_OUTPUT_BUCKET/$SOLUTION_NAME/$VERSION --acl bucket-owner-full-control
-aws s3 sync ./regional-s3-assets s3://$DIST_OUTPUT_BUCKET-us-east-1/$SOLUTION_NAME/$VERSION --acl bucket-owner-full-control
-```
-
- > **Notes**: Choose your desired region by changing region in the above example from us-east-1 to your desired region of the S3 buckets.
-
-## 5. Launch the CloudFormation template
-
-* Get the link of `improving-forecast-accuracy-with-machine-learning.template` uploaded to your Amazon S3 bucket.
-* Deploy the solution to your account by launching a new AWS CloudFormation stack using the link of the `improving-forecast-accuracy-with-machine-learning.template`.
-
-## 6. Test/ Demo the Solution
-
-To test the solution, or provide a demo - you can follow the synthetic data generation instructions under `source/synthetic/README.md`.
+To test the solution, or provide a demo - you can follow the synthetic data generation instructions in
+`source/synthetic/README.md` ([here](source/synthetic/README.md)).
 
 ### Known issues
 
 ***
 
-Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

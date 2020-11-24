@@ -1,0 +1,8 @@
+{
+  "app": "python3 deploy.py",
+  "context": {
+    "SOLUTION_NAME": "improving-forecast-accuracy-with-machine-learning",
+    "VERSION": "1.2.0",
+    "@aws-cdk/core:newStyleStackSynthesis": "true"
+  }
+}

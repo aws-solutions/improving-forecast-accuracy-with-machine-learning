@@ -206,7 +206,7 @@ class Forecast(ForecastClient):
                 Destination={
                     "S3Config": {
                         "Path": f"s3://{dataset_file.bucket}/exports/{export_name}",
-                        "RoleArn": environ.get("EXPORT_ROLE"),
+                        "RoleArn": environ.get("FORECAST_ROLE"),
                     }
                 },
             )

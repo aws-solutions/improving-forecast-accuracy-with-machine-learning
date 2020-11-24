@@ -38,6 +38,7 @@ def test_dataset_import_job_status_lifecycle(configuration_data, forecast_stub, 
     dataset_file = DatasetFile("RetailDemandTRM.csv", "some_bucket")
     dataset_import_job = config.dataset_import_job(dataset_file)
     size = 40
+    etag = "9d2990c88a30dac1785a09fbb46f3e10"
 
     # first call - doesn't exist
     forecast_stub.add_response("list_dataset_import_jobs", {"DatasetImportJobs": []})
@@ -61,10 +62,11 @@ def test_dataset_import_job_status_lifecycle(configuration_data, forecast_stub, 
         },
     )
     forecast_stub.add_response(
-        "describe_dataset_import_job",
-        {"Status": "ACTIVE", "FieldStatistics": {"item_id": {"Count": size}}},
+        "describe_dataset_import_job", {"Status": "ACTIVE"},
     )
-    forecast_stub.add_response("list_tags_for_resource", {"Tags": []})
+    forecast_stub.add_response(
+        "list_tags_for_resource", {"Tags": [{"Key": "SolutionETag", "Value": etag}]}
+    )
     forecast_stub.add_response(
         "list_dataset_import_jobs",
         {
@@ -85,16 +87,22 @@ def test_dataset_import_job_status_lifecycle(configuration_data, forecast_stub, 
         },
     )
     forecast_stub.add_response(
-        "describe_dataset_import_job",
-        {"Status": "ACTIVE", "FieldStatistics": {"item_id": {"Count": size + 1}}},
+        "describe_dataset_import_job", {"Status": "ACTIVE"},
     )
-    forecast_stub.add_response("list_tags_for_resource", {"Tags": []})
+    forecast_stub.add_response(
+        "list_tags_for_resource",
+        {
+            "Tags": [
+                {"Key": "SolutionETag", "Value": "9d2990c88a30dac1785a09fbb46f3e11"}
+            ]
+        },
+    )
 
     dataset_import_job.cli = forecast_stub.client
     mocker.patch(
-        "shared.Dataset.dataset_file.DatasetFile.size",
+        "shared.Dataset.dataset_file.DatasetFile.etag",
         new_callable=mocker.PropertyMock,
-        return_value=size,
+        return_value=etag,
     )
 
     assert dataset_import_job.status == Status.DOES_NOT_EXIST

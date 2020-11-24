@@ -12,8 +12,10 @@
 # #####################################################################################################################
 
 import json
+import time
 from datetime import datetime
 from functools import cached_property
+from hashlib import md5
 from os.path import split, join
 from urllib.parse import urlparse
 
@@ -100,12 +102,21 @@ class DatasetFile:
     @cached_property
     def etag(self) -> str:
         """
-        Get the entity tag (ETag) of the object in S3.
+        Get the full MD5 signature of an S3 object (streams in 10MB increments)
         :return:
         """
-        obj_info = self.cli.head_object(Bucket=self.bucket, Key=self.key)
-        tag = obj_info.get("ETag").strip('"')
-        return tag
+        signature = md5()
+        s3_object = self.cli.get_object(Bucket=self.bucket, Key=self.key)
+
+        logger.info(f"getting signature for s3://{self.bucket}/{self.key}")
+        time_start = time.perf_counter()
+        for chunk in s3_object["Body"].iter_chunks(10240):
+            signature.update(chunk)
+        hexdigest = signature.hexdigest()
+        time_end = time.perf_counter()
+        logger.info(f"signature calculated in {time_end - time_start:0.4f} seconds")
+
+        return hexdigest
 
     @cached_property
     def size(self) -> int:

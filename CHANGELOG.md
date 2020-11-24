@@ -4,10 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2020-11-23
+### Added
+- Implementation now uses [AWS Cloud Development Kit (AWS CDK)](https://aws.amazon.com/cdk/)
+and architecture patterns from [AWS Solutions Constructs](https://aws.amazon.com/solutions/constructs/) to create the 
+AWS CloudFormation template. See `source/infrastructure/README.md` for details.
+### Fixed
+- The AWS Step Functions State Machine now tags all dataset files uploaded to Amazon Forecast using a full checksum
+rather than the S3 entity tag. This provides better support for multipart uploads and larger datasets. 
+
 ## [1.1.0] - 2020-10-26
 ### Added
 - Datasets can now be shared between predictor and forecast configurations. As these shared datasets are uploaded, all
- dependent resources are updated in Amazon Forecast. See the Implementation Guide for details.
+ dependent resources are updated in Amazon Forecast. See the 
+ [Implementation Guide](https://docs.aws.amazon.com/solutions/latest/improving-forecast-accuracy-with-machine-learning/welcome.html)
+ for details.
 - Synthetic dataset generation tooling has been improved to support metadata and related time series data. See 
 `source/synthetic/README.md` for details.
 - After forecast exports are completed, the solution now outputs an Athena table of the same name, combining forecast 

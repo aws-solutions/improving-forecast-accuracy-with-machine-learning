@@ -50,7 +50,7 @@ def build_message(event):
     message = ""
     error = None
     file = DatasetFile(event.get("dataset_file"), event.get("bucket"))
-    forecast_for = event.get('dataset_group_name', file.prefix)
+    forecast_for = event.get("dataset_group_name", file.prefix)
 
     if "statesError" in event.keys():
         logger.info("State error message encountered")

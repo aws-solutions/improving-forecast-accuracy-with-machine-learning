@@ -145,18 +145,24 @@ def mocked_dsg(dataset_file, configuration_data, mocker):
         dsg.cli.describe_dataset_group.return_value = {
             "DatasetArns": ["arn::1", "arn::2", "arn::3"]
         }
-        dsg.cli.describe_dataset.return_value = {"DatasetArn": 'arn::1', "Status": "ACTIVE", 'LastModificationTime': datetime.now()}
+        dsg.cli.describe_dataset.return_value = {
+            "DatasetArn": "arn::1",
+            "Status": "ACTIVE",
+            "LastModificationTime": datetime.now(),
+        }
 
-        dsg.cli.get_paginator().paginate.return_value = [{
-            'DatasetImportJobs': [
-                {
-                    "DatasetImportJobArn": f"arn::{i}",
-                    "Status": "ACTIVE",
-                    "LastModificationTime": datetime.now()
-                }
-                for i in range(3)
-            ]
-        }]
+        dsg.cli.get_paginator().paginate.return_value = [
+            {
+                "DatasetImportJobs": [
+                    {
+                        "DatasetImportJobArn": f"arn::{i}",
+                        "Status": "ACTIVE",
+                        "LastModificationTime": datetime.now(),
+                    }
+                    for i in range(3)
+                ]
+            }
+        ]
 
         yield dsg
 

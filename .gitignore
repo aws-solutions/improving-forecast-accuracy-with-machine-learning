@@ -32,3 +32,10 @@ __pycache__/
 
 # System Files
 **/.DS_Store
+
+# CDK
+**/cdk.out
+
+# Generated test assets
+source/infrastructure/tests/assets/*
+!source/infrastructure/tests/assets/.keep

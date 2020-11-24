@@ -30,7 +30,10 @@ echo "--------------------------------------------------------------------------
 
 virtualenv .venv
 source .venv/bin/activate
+
+cd $source_dir
 pip install -r $source_dir/requirements-build-and-test.txt
+cd -
 
 echo "------------------------------------------------------------------------------"
 echo "[Test] Run pytest with coverage"

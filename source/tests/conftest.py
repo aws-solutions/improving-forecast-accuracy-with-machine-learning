@@ -33,7 +33,7 @@ def aws_credentials():
     ] = "arn:aws:sns:us-east-1:abcdefghijkl:some-forecast-notification-topic"
     os.environ["EXPORT_ROLE"] = "arn:aws:iam::abcdefghijkl:role/export-role"
     os.environ[
-        "STEP_FUNCTIONS_ARN"
+        "STATE_MACHINE_ARN"
     ] = "DeployStateMachine	arn:aws:states:us-east-1:abcdefghijkl:stateMachine:Forecast-Workflow-Automation-forecast-unsamez"
 
 

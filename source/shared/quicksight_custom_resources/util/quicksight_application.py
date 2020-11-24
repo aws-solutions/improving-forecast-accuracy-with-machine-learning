@@ -21,9 +21,7 @@ from shared.quicksight_custom_resources.util.analysis import Analysis
 from shared.quicksight_custom_resources.util.dashboard import Dashboard
 from shared.quicksight_custom_resources.util.dataset import DataSet
 from shared.quicksight_custom_resources.util.datasource import DataSource
-from shared.quicksight_custom_resources.util.template import (
-    Template,
-)
+from shared.quicksight_custom_resources.util.template import Template
 
 logger = get_logger(__name__)
 

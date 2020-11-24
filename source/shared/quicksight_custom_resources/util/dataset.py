@@ -11,12 +11,14 @@
 #  and limitations under the License.                                                                                 #
 # #####################################################################################################################
 
+from tenacity import retry, retry_if_exception_type, stop_after_attempt
+
 from shared.helpers import get_quicksight_client
 from shared.logging import get_logger
 from shared.quicksight_custom_resources.util.quicksight_resource import (
-    QuickSightResource, QuickSightFailure
+    QuickSightResource,
+    QuickSightFailure,
 )
-from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
 logger = get_logger(__name__)
 
