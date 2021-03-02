@@ -141,7 +141,15 @@ def test_metadata_rate_distribution(model_metadata):
     assert rate > model_metadata.min and rate < model_metadata.max
 
 
-@pytest.mark.parametrize("min,max", [(10, 1), (10, 9), (0, 1), (1, 0),])
+@pytest.mark.parametrize(
+    "min,max",
+    [
+        (10, 1),
+        (10, 9),
+        (0, 1),
+        (1, 0),
+    ],
+)
 def test_metadata_rate_invalid_values(model_metadata, min, max):
     with pytest.raises(ValueError):
         md = Metadata(name="a", value="b", min=min, max=max)

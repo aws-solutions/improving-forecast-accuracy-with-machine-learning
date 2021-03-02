@@ -31,10 +31,16 @@ class DatasetImportJob(ForecastClient):
         dataset_file: DatasetFile,
         dataset_arn: str,
         timestamp_format: DataTimestampFormat,
+        geolocation_format: str,
+        time_zone: str,
+        use_geolocation_for_time_zone: bool,
     ):
         self.dataset_arn = dataset_arn
         self.timestamp_format = timestamp_format
         self.dataset_file = dataset_file
+        self.geolocation_format = geolocation_format
+        self.use_geolocation_for_time_zone = use_geolocation_for_time_zone
+        self.time_zone = time_zone
         self._import_job_params = {
             "DatasetImportJobName": "PLACEHOLDER",
             "DatasetArn": self.dataset_arn,
@@ -47,6 +53,14 @@ class DatasetImportJob(ForecastClient):
         }
         if self.timestamp_format:
             self._import_job_params["TimestampFormat"] = str(self.timestamp_format)
+        if self.geolocation_format:
+            self._import_job_params["GeolocationFormat"] = self.geolocation_format
+        if self.use_geolocation_for_time_zone:
+            self._import_job_params[
+                "UseGeolocationForTimeZone"
+            ] = self.use_geolocation_for_time_zone
+        if self.time_zone:
+            self._import_job_params["TimeZone"] = self.time_zone
 
         super().__init__(resource="dataset_import_job", **self._import_job_params)
 

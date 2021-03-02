@@ -60,7 +60,9 @@ def test_get_tag_present(lifecycle_config, mocker, forecast_stub, caplog):
         "notebook.lifecycle_config.open",
         mocker.mock_open(read_data='{"ResourceArn": "arn::mocked"}'),
     )
-    mocker.patch("notebook.lifecycle_config.sagemaker_cli",)
+    mocker.patch(
+        "notebook.lifecycle_config.sagemaker_cli",
+    )
 
     lifecycle_config.sagemaker_cli = forecast_stub.client
     forecast_stub.add_response(
@@ -79,7 +81,9 @@ def test_get_tag_present(lifecycle_config, mocker, forecast_stub):
         "notebook.lifecycle_config.open",
         mocker.mock_open(read_data='{"ResourceArn": "arn::mocked"}'),
     )
-    mocker.patch("notebook.lifecycle_config.sagemaker_cli",)
+    mocker.patch(
+        "notebook.lifecycle_config.sagemaker_cli",
+    )
 
     lifecycle_config.sagemaker_cli = forecast_stub.client
     forecast_stub.add_response(
@@ -94,7 +98,9 @@ def test_get_tag_b64(lifecycle_config, mocker, forecast_stub):
         "notebook.lifecycle_config.open",
         mocker.mock_open(read_data='{"ResourceArn": "arn::mocked"}'),
     )
-    mocker.patch("notebook.lifecycle_config.sagemaker_cli",)
+    mocker.patch(
+        "notebook.lifecycle_config.sagemaker_cli",
+    )
 
     lifecycle_config.sagemaker_cli = forecast_stub.client
     forecast_stub.add_response(

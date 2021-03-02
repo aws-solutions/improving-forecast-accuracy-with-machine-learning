@@ -41,7 +41,8 @@ def aws_credentials():
 def s3_valid_config():
     with mock_s3():
         with open(
-            os.path.join(os.path.dirname(__file__), "fixtures", CONFIG_FILE), "r",
+            os.path.join(os.path.dirname(__file__), "fixtures", CONFIG_FILE),
+            "r",
         ) as f:
             body = f.read()
 
@@ -124,7 +125,8 @@ def s3(aws_credentials):
 @pytest.fixture
 def configuration_data():
     with open(
-        os.path.join(os.path.dirname(__file__), "fixtures", CONFIG_FILE), "r",
+        os.path.join(os.path.dirname(__file__), "fixtures", CONFIG_FILE),
+        "r",
     ) as f:
         body = f.read()
     return yaml.safe_load(body)
@@ -133,7 +135,8 @@ def configuration_data():
 @pytest.fixture
 def sfn_configuration_data():
     with open(
-        os.path.join(os.path.dirname(__file__), "fixtures", CONFIG_FILE), "r",
+        os.path.join(os.path.dirname(__file__), "fixtures", CONFIG_FILE),
+        "r",
     ) as f:
         body = f.read()
 

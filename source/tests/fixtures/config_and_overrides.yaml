@@ -50,6 +50,87 @@ Default:
           - AttributeName: brand
             AttributeType: string
 
+taxi:
+  DatasetGroup:
+    Domain: CUSTOM
+
+  Datasets:
+    - Domain: CUSTOM
+      DatasetType: TARGET_TIME_SERIES
+      DataFrequency: H
+      TimestampFormat: yyyy-MM-dd HH:mm:ss
+      GeolocationFormat: LAT_LONG
+      TimeZone: America/New_York
+      Schema:
+        Attributes:
+          - AttributeName: timestamp
+            AttributeType: timestamp
+          - AttributeName: item_id
+            AttributeType: string
+          - AttributeName: target_value
+            AttributeType: float
+          - AttributeName: geolocation
+            AttributeType: geolocation
+    - Domain: CUSTOM
+      DatasetType: ITEM_METADATA
+      Schema:
+        Attributes:
+          - AttributeName: item_id
+            AttributeType: string
+          - AttributeName: borough
+            AttributeType: string
+          - AttributeName: taxi_zone
+            AttributeType: string
+          - AttributeName: taxi_service_zone
+            AttributeType: string
+
+  Predictor:
+    MaxAge: 604800  # one week
+    AlgorithmArn: arn:aws:forecast:::algorithm/Deep_AR_Plus
+    ForecastHorizon: 72
+    FeaturizationConfig:
+      ForecastFrequency: H
+      ForecastDimensions: ["geolocation"]
+      Featurizations:
+        - AttributeName: target_value
+          FeaturizationPipeline:
+            - FeaturizationMethodName: filling
+              FeaturizationMethodParameters:
+                aggregation: sum
+                backfill: zero
+                frontfill: none
+                middlefill: zero
+    InputDataConfig:
+      SupplementaryFeatures:
+        - Name: holiday
+          Value: US
+        - Name: weather
+          Value: "true"
+    EvaluationParameters:
+      NumberOfBacktestWindows: 3
+      BackTestWindowOffset: 72
+    ForecastTypes:
+      - "0.50"
+      - "0.60"
+      - "0.70"
+    TrainingParameters:
+      context_length: "63"
+      epochs: "250"
+      learning_rate: "0.014138165570842774"
+      learning_rate_decay: "0.5"
+      likelihood: student-t
+      max_learning_rate_decays: "0"
+      num_averaged_models: "1"
+      num_cells: "40"
+      num_layers: "2"
+      prediction_length: "72"
+
+  Forecast:
+    ForecastTypes:
+      - "0.50"
+      - "0.60"
+      - "0.70"
+
 Override:
   DatasetGroup:
     Domain: WEB_TRAFFIC

@@ -122,19 +122,20 @@ class Forecast(ForecastClient):
 
         return Status[past_status.get("Status")]
 
+    @property
     def _latest_timestamp(self):
-        latest_dataset_timestamp = self._dataset_group.latest_timestamp
-        latest_predictor_timestamp = self._predictor.latest_timestamp()
-        latest_timestamp = max(latest_dataset_timestamp, latest_predictor_timestamp)
-        return latest_timestamp
+        """
+        Forecasts can use existing predictors with new data. Use the dataset latest timestamp as the forecast timestamp
+        :return:
+        """
+        return self._dataset_group.latest_timestamp
 
     def create(self):
         """
         Create the forecast
         :return: None
         """
-        forecast_timestamp = self._latest_timestamp()
-        forecast_name = f"forecast_{forecast_timestamp}"
+        forecast_name = f"forecast_{self._dataset_group.dataset_group_name}_{self._latest_timestamp}"
 
         try:
             logger.info("Creating forecast %s" % forecast_name)
@@ -157,7 +158,11 @@ class Forecast(ForecastClient):
         """
         past_exports = []
         filters = [
-            {"Condition": "IS", "Key": "ForecastArn", "Value": self.arn,},
+            {
+                "Condition": "IS",
+                "Key": "ForecastArn",
+                "Value": self.arn,
+            },
             {"Condition": "IS", "Key": "Status", "Value": status},
         ]
 
@@ -173,7 +178,7 @@ class Forecast(ForecastClient):
 
         return past_exports
 
-    def export(self, dataset_file: DatasetFile) -> Status:
+    def export(self, dataset_file: DatasetFile) -> Export:
         """
         Export/ check on an export of this Forecast
         :param dataset_file: The dataset file last updated that generated this export
@@ -182,9 +187,8 @@ class Forecast(ForecastClient):
         if not self.arn:
             raise ValueError("Forecast does not yet exist - cannot perform export.")
 
-        latest_timestamp = self._latest_timestamp()
         export_name = (
-            f"export_{self._dataset_group.dataset_group_name}_{latest_timestamp}"
+            f"export_{self._dataset_group.dataset_group_name}_{self._latest_timestamp}"
         )
 
         past_export = Export()
@@ -197,7 +201,9 @@ class Forecast(ForecastClient):
             )
             past_export.status = Status[past_status.get("Status")]
         except self.cli.exceptions.ResourceInUseException as excinfo:
-            logger.debug("Export %s is updating: %s" % (export_name, str(excinfo)))
+            logger.debug(
+                "Forecast export %s is updating: %s" % (export_name, str(excinfo))
+            )
         except self.cli.exceptions.ResourceNotFoundException:
             logger.info("Creating forecast export %s" % export_name)
             self.cli.create_forecast_export_job(

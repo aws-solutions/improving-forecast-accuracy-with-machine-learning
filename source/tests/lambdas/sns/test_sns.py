@@ -133,9 +133,9 @@ def test_sns_notification_in_progress(in_progress, mocker):
     patched_client = mocker.patch("lambdas.sns.handler.get_sns_client")
     sns(in_progress, None)
     patched_client().publish.assert_called_once()
-    assert "Update for forecast" in patched_client().publish.call_args_list[
-        0
-    ].kwargs.get("Message")
+    args, kwargs = patched_client().publish.call_args_list[0]
+    assert args == ()
+    assert "Update for forecast" in kwargs["Message"]
 
 
 def test_prepare_forecast_ready_message(success_event):

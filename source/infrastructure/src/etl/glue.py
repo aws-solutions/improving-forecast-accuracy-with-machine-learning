@@ -10,14 +10,31 @@
 #  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions     #
 #  and limitations under the License.                                                                                 #
 # #####################################################################################################################
-from aws_cdk.core import Construct, Aws, CfnResource
+from pathlib import Path
+
+import aws_cdk.aws_iam as iam
+from aws_cdk.aws_s3 import IBucket, Location
+from aws_cdk.aws_s3_deployment import BucketDeployment, Source
+from aws_cdk.core import Construct, Aws, CfnResource, Fn
+
+from etl.policies import GluePolicies
+from solutions.cdk_helpers import is_solution_build, UrlDownloader
+from solutions.cfn_nag import add_cfn_nag_suppressions, CfnNagSuppression
 
 
 class Glue(Construct):
     def __init__(
-        self, scope: Construct, id: str, unique_name: CfnResource,
+        self,
+        scope: Construct,
+        id: str,
+        unique_name: CfnResource,
+        forecast_bucket: IBucket,
+        athena_bucket: IBucket,
+        glue_jobs_path: Path,
     ):
         super().__init__(scope, id)
+
+        self.policies = GluePolicies(self)
 
         # implementation of CDK CfnDatabase is incomplete, use CfnResource
         self.database = CfnResource(
@@ -34,23 +51,90 @@ class Glue(Construct):
         )
         self.database.override_logical_id("DataCatalog")
 
-        self.security_configuration = CfnResource(
+        self.glue_role = iam.Role(
             self,
-            "SecurityConfiguration",
-            type="AWS::Glue::SecurityConfiguration",
+            "GlueRole",
+            assumed_by=iam.ServicePrincipal("glue.amazonaws.com"),
+            inline_policies={
+                "S3SolutionAccess": self.policies.s3_read_write_access(
+                    [athena_bucket, forecast_bucket]
+                ),
+                "S3StackAccess": self.policies.s3_solutions_read_access(),
+                "ForecastRead": self.policies.forecast_read(),
+                "CloudwatchLogsAccess": self.policies.cloudwatch_logs_write(),
+                "GlueAccess": self.policies.glue_access(
+                    database=self.database,
+                    athena_bucket=athena_bucket,
+                    data_bucket=forecast_bucket,
+                ),
+            },
+        )
+        add_cfn_nag_suppressions(
+            self.glue_role.node.default_child,
+            [
+                CfnNagSuppression(
+                    "W11",
+                    "Require access to all resources; Not all Amazon Forecast resources support resource based policy",
+                )
+            ],
+        )
+
+        # deploy the glue script locally or from the solutions bucket
+        if is_solution_build(self):
+            # deploy the asset (from the solutions bucket)
+            downloader = UrlDownloader(
+                self,
+                "GlueJob",
+                source=Location(
+                    bucket_name=f"{Fn.find_in_map('SourceCode', 'General', 'S3Bucket')}-{Aws.REGION}",
+                    object_key=f"{Fn.find_in_map('SourceCode', 'General', 'KeyPrefix')}/glue/forecast_etl.py",
+                ),
+                destination=Location(
+                    bucket_name=forecast_bucket.bucket_name,
+                    object_key="glue/forecast_etl.py",
+                ),
+            )
+        else:
+            # deploy the asset (from CDK assets)
+            sources = [Source.asset(path=str(glue_jobs_path))]
+            self.glue_script_deployment = BucketDeployment(
+                self,
+                "GlueJob",
+                destination_bucket=forecast_bucket,
+                destination_key_prefix="glue",
+                sources=sources,
+            )
+
+        self.glue_job = CfnResource(
+            self,
+            "ForecastETLJob",
+            type="AWS::Glue::Job",
             properties={
-                "Name": f"Security Configuration for {Aws.STACK_NAME}",
-                "EncryptionConfiguration": {
-                    "CloudWatchEncryption": {
-                        "CloudWatchEncryptionMode": "SSE-KMS",
-                        "KmsKeyArn": f"arn:{Aws.PARTITION}:kms:{Aws.REGION}:{Aws.ACCOUNT_ID}/alias/aws/glue",
-                    },
-                    "JobBookmarksEncryption": {
-                        "JobBookmarksEncryptionMode": "CSE-KMS",
-                        "KmsKeyArn": f"arn:{Aws.PARTITION}:kms:{Aws.REGION}:{Aws.ACCOUNT_ID}/alias/aws/glue",
-                    },
-                    "S3Encryptions": [{"S3EncryptionMode": "SSE-S3"}],
+                "Name": f"{Aws.STACK_NAME}-Forecast-ETL",
+                "Description": "Improving Forecast Accuracy with Machine Learning - Glue Job",
+                "Role": self.glue_role.role_arn,
+                "Command": {
+                    "Name": "glueetl",
+                    "PythonVersion": "3",
+                    "ScriptLocation": forecast_bucket.s3_url_for_object(
+                        "glue/forecast_etl.py"
+                    ),
+                },
+                "DefaultArguments": {
+                    "--region": Aws.REGION,
+                    "--account_id": Aws.ACCOUNT_ID,
+                    "--database": self.database.ref,
+                    "--data_bucket": forecast_bucket.bucket_name,
+                    "--job-bookmark-option": "job-bookmark-disable",
+                    "--job-language": "python",
+                    "--encryption-type": "sse-s3",
+                    "--additional-python-modules": "boto3==1.16.55",
+                },
+                "GlueVersion": "2.0",
+                "WorkerType": "G.1X",
+                "NumberOfWorkers": 2,
+                "ExecutionProperty": {
+                    "MaxConcurrentRuns": 5,
                 },
             },
         )
-        self.security_configuration.override_logical_id("SecurityConfiguration")

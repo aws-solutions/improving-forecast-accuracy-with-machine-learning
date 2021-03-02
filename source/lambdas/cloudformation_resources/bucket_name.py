@@ -10,12 +10,14 @@
 #  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions     #
 #  and limitations under the License.                                                                                 #
 # #####################################################################################################################
-
+import logging
+from os import getenv
 from uuid import uuid4 as uuid
 
 from crhelper import CfnResource
 
-helper = CfnResource(log_level="INFO")
+logger = logging.getLogger(__name__)
+helper = CfnResource(log_level=getenv("LOG_LEVEL", "WARNING"))
 
 
 def get_property(event, property_name, property_default=None):
@@ -41,12 +43,15 @@ def generate_name(event, _):
     bucket_purpose = get_property(event, "BucketPurpose")
 
     bucket_name = f"{stack_name}-{bucket_purpose}-{id}".lower()
-    length = len(bucket_name)
-    if length > 63:
+    if len(bucket_name) > 63:
+        logger.warning("cannot use stack name in bucket name - trying default")
+        bucket_name = f"{bucket_purpose}-{id}".lower()
+    if len(bucket_name) > 63:
         raise ValueError(
             f"the derived bucket name {bucket_name} is too long - please use a shorter bucket purpose or stack name"
         )
 
+    logger.info(f"the derived bucket name is {bucket_name}")
     helper.Data["Name"] = bucket_name
 
 

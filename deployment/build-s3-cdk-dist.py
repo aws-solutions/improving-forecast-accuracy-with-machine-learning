@@ -17,18 +17,28 @@ import os
 import shutil
 import subprocess
 from dataclasses import dataclass, field
+from zipfile import ZipFile
 
 import click
 
 from infrastructure import cdk
 
-logger = logging.getLogger("cdk-helper")
-logger.setLevel(logging.INFO)
 
-handler = logging.StreamHandler()
-formatter = logging.Formatter("[%(levelname)s]\t%(name)s\t%(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+class Logger:
+    @classmethod
+    def getLogger(self, name):
+        logger = logging.getLogger(name)
+        if not len(logger.handlers):
+            logger.setLevel(logging.INFO)
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter("[%(levelname)s]\t%(name)s\t%(message)s")
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+            logger.propagate = False
+        return logger
+
+
+logger = Logger.getLogger("cdk-helper")
 
 
 class Cleaner:
@@ -44,7 +54,11 @@ class Cleaner:
             "file_type": "d",
             "pattern": "__pycache__",
         },
-        {"name": "Python test cache", "pattern": ".pytest_cache", "file_type": "d",},
+        {
+            "name": "Python test cache",
+            "pattern": ".pytest_cache",
+            "file_type": "d",
+        },
     ]
 
     def clean_dirs(self, *args):
@@ -101,6 +115,7 @@ class BuildEnvironment:
         self.notebook_dir = os.path.join(
             self.source_dir, "notebook", "samples", "notebooks"
         )
+        self.glue_job_dir = os.path.join(self.source_dir, "glue", "jobs")
         self.infrastructure_dir = os.path.join(self.source_dir, "infrastructure")
 
         logger.debug("build environment template directory: %s" % self.template_dir)
@@ -118,11 +133,17 @@ class BuildEnvironment:
             "build environment infrastructure directory: %s" % self.infrastructure_dir
         )
 
+    def clean_for_scan(self):
+        """Clean up the build environment partially to optimize code scan in next build stage"""
+        cleaner = Cleaner()
+        cleaner.cleanup_source(self.source_dir)
+        return cleaner
+
     def clean(self):
         """Clean up the build environment"""
-        cleaner = Cleaner()
+        cleaner = self.clean_for_scan()
         cleaner.clean_dirs(self.template_dist_dir, self.build_dir, self.build_dist_dir)
-        cleaner.cleanup_source(self.source_dir)
+        return cleaner
 
 
 class BaseAssetPackager:
@@ -176,6 +197,24 @@ class RegionalAssetPackager(BaseAssetPackager):
             dst=os.path.join(self.build_env.build_dist_dir, "notebooks"),
         )
 
+        logger.info("packaging Glue Jobs")
+        shutil.copytree(
+            src=self.build_env.glue_job_dir,
+            dst=os.path.join(self.build_env.build_dist_dir, "glue"),
+        )
+
+
+class GlobalAssetPackager(BaseAssetPackager):
+    """Used to package global assets"""
+
+    def __init__(self, build_env: BuildEnvironment):
+        self.build_env = build_env
+        self.local_asset_path = build_env.template_dist_dir
+        self.s3_asset_path = f"s3://{build_env.source_bucket_name}/{build_env.solution_name}/{build_env.version_code}"
+
+    def package(self):
+        logger.info("packaging global assets")
+
 
 @click.command()
 @click.option(
@@ -207,6 +246,14 @@ class RegionalAssetPackager(BaseAssetPackager):
     default=False,
     is_flag=True,
 )
+@click.option(
+    "--clean-for-scan",
+    "clean_for_scan",
+    help="Use this to partially clean generated build files to optimize code scan in next build stage",
+    default=False,
+    is_flag=True,
+    required=True,
+)
 def package_assets(
     source_bucket_name,
     solution_name,
@@ -215,6 +262,7 @@ def package_assets(
     dist_quicksight_namespace,
     log_level,
     sync,
+    clean_for_scan,
 ):
     """Runs the CDK build of the project, uploading assets as required."""
 
@@ -226,6 +274,13 @@ def package_assets(
         solution_name=solution_name,
         version_code=version_code,
     )
+
+    if clean_for_scan:
+        build_env.clean_for_scan()
+        # for clean_for_scan option, return after cleaning
+        return
+
+    # clean up the build environment from previous builds before running this build
     build_env.clean()
 
     # create quicksight source template ID
@@ -254,8 +309,13 @@ def package_assets(
     rap = RegionalAssetPackager(build_env)
     rap.package()
 
+    # run global asset packaging
+    gap = GlobalAssetPackager(build_env)
+    gap.package()
+
     if sync:
         rap.sync()
+        gap.sync()
 
 
 if __name__ == "__main__":

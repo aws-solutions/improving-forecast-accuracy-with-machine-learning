@@ -136,6 +136,44 @@ class Config:
         format = self.config_item(dataset_file, "Dataset.TimestampFormat")
         return DataTimestampFormat(format)
 
+    def data_geolocation_format(self, dataset_file: DatasetFile) -> str:
+        """
+        Get the data geolocation format from config
+        :param dataset_file: The dataset file to use
+        :return: the data geolocation format
+        """
+        try:
+            format = self.config_item(dataset_file, "Dataset.GeolocationFormat")
+        except ValueError:
+            format = None
+        return format
+
+    def data_time_zone(self, dataset_file: DatasetFile) -> str:
+        """
+        Get the data timezone from config
+        :param dataset_file: The dataset file to use
+        :return: the data timezone format
+        """
+        try:
+            format = self.config_item(dataset_file, "Dataset.TimeZone")
+        except ValueError:
+            format = None
+        return format
+
+    def data_geolocation_for_time_zone(self, dataset_file: DatasetFile) -> bool:
+        """
+        Get whether to use geolocation for timezone from config
+        :param dataset_file: The dataset file to use
+        :return: whether to use geolocation for timezone
+        """
+        try:
+            use_geolocation = self.config_item(
+                dataset_file, "Dataset.UseGeolocationForTimeZone"
+            )
+        except ValueError:
+            use_geolocation = None
+        return use_geolocation
+
     def dataset(self, dataset_file: DatasetFile) -> Dataset:
         """
         Get the dataset from config
@@ -220,7 +258,10 @@ class Config:
         name = dataset_group_name if dataset_group_name else dataset_file.prefix
         domain = self.dataset_group_domain(dataset_file, dataset_group_name)
 
-        dsg = DatasetGroup(dataset_group_name=name, dataset_domain=domain,)
+        dsg = DatasetGroup(
+            dataset_group_name=name,
+            dataset_domain=domain,
+        )
 
         ds = self.dataset(dataset_file)
         if ds.dataset_domain != dsg.dataset_group_domain:
@@ -268,6 +309,11 @@ class Config:
             dataset_file=dataset_file,
             dataset_arn=ds.arn,
             timestamp_format=self.data_timestamp_format(dataset_file),
+            geolocation_format=self.data_geolocation_format(dataset_file),
+            time_zone=self.data_time_zone(dataset_file),
+            use_geolocation_for_time_zone=self.data_geolocation_for_time_zone(
+                dataset_file
+            ),
         )
 
         return dsi
@@ -422,7 +468,14 @@ class Config:
             )
 
         for dataset_config in config_data:
-            dataset_config.pop("TimestampFormat", None)
+            for non_dataset_field in [
+                "TimestampFormat",
+                "GeolocationFormat",
+                "TimeZone",
+                "UseGeolocationForTimeZone",
+            ]:
+                dataset_config.pop(non_dataset_field, None)
+
             try:
                 Dataset.validate_config(DatasetName="placeholder", **dataset_config)
             except ParamValidationError as excinfo:
@@ -432,10 +485,14 @@ class Config:
 
     def _valid_predictor(self, config_key, resource, config_data, errors):
         config_data.pop("MaxAge", None)
+
+        input_data_config = config_data.pop("InputDataConfig", {})
+        input_data_config["DatasetGroupArn"] = "placeholder"
+        config_data.pop("InputDataConfig", None)
         try:
             Predictor.validate_config(
                 PredictorName="placeholder",
-                InputDataConfig={"DatasetGroupArn": "placeholder"},
+                InputDataConfig=input_data_config,
                 **config_data,
             )
         except ParamValidationError as excinfo:

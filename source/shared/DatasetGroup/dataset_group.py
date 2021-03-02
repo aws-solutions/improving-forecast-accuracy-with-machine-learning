@@ -119,9 +119,7 @@ class DatasetGroup(ForecastClient):
                 Tags=self.tags,
             )
         except self.cli.exceptions.ResourceAlreadyExistsException:
-            logger.debug(
-                "Dataset Group %s is already creating" % self._dataset_group_name
-            )
+            logger.debug("Dataset Group %s already exists" % self._dataset_group_name)
 
     def update(self, datasets: List[Dataset], dataset_file: DatasetFile):
         """

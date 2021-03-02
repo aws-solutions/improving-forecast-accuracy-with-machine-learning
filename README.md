@@ -82,11 +82,14 @@ solution
 To test the solution, or provide a demo - you can follow the synthetic data generation instructions in
 `source/synthetic/README.md` ([here](source/synthetic/README.md)).
 
-### Known issues
+## Known Issues 
+
+- When running the solution in us-east-2, the AWS Glue Job may fail with a `KeyError`. When this occurs, forecasts will
+be generated, but the Amazon Athena/ AWS Glue table will not be generated to consolidate the input and forecast data.  
 
 ***
 
-Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+Copyright 2020-2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

@@ -80,9 +80,9 @@ def test_send_metrics(mocker, test_event):
     result = send_metrics(test_event, None)
     assert UUID(result, version=4)
 
-    assert requests_mock.post.call_args.args[0] == mock_endpoint
+    assert requests_mock.post.call_args[0][0] == mock_endpoint
 
-    request_data = requests_mock.post.call_args.kwargs.get("json")
+    request_data = requests_mock.post.call_args[1].get("json")
     assert request_data.get("Solution") == "SOL0123"
     assert request_data.get("UUID")
     assert request_data.get("TimeStamp")
@@ -91,7 +91,7 @@ def test_send_metrics(mocker, test_event):
     assert data.get("Metric1") == "Data1"
     assert data.get("CFTemplate") in ["Created", "Deleted", "Updated"]
 
-    headers = requests_mock.post.call_args.kwargs.get("headers")
+    headers = requests_mock.post.call_args[1].get("headers")
     assert headers.get("Content-Type") == "application/json"
 
 

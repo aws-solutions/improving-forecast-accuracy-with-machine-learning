@@ -23,17 +23,25 @@ import pwd
 import subprocess
 
 import boto3
+from botocore.config import Config
 
 JUPYTER_ENV_FILE = "/etc/profile.d/jupyter-env.sh"
 NOTEBOOKS = ["%%NOTEBOOKS%%"]
+SOLUTION_ID = "SOL0123"
+SOLUTION_VERSION = "1.3.0"
+CLIENT_CONFIG = Config(
+    retries={"max_attempts": 10, "mode": "standard"},
+    user_agent_extra=f"AwsSolution/{SOLUTION_ID}/{SOLUTION_VERSION}",
+)
+
 
 logging.basicConfig(
     format="[%(levelname)s]\t%(asctime)s.%(msecs)dZ\t%(message)s\n",
     datefmt="%Y-%m-%dT%H:%M:%S",
     level=logging.INFO,
 )
-sagemaker_cli = boto3.client("sagemaker")
-s3_cli = boto3.client("s3")
+sagemaker_cli = boto3.client("sagemaker", config=CLIENT_CONFIG)
+s3_cli = boto3.client("s3", config=CLIENT_CONFIG)
 
 
 def get_tag(name, is_base64=False):

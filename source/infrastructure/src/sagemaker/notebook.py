@@ -12,7 +12,6 @@
 # #####################################################################################################################
 
 import os
-from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Union
 
@@ -25,92 +24,9 @@ from aws_cdk.aws_sagemaker import (
 )
 from aws_cdk.core import Construct, CfnTag, Fn, Aws
 
+from sagemaker.policies import NotebookPolicies
+from solutions.cdk_helpers import is_solution_build
 from solutions.cfn_nag import CfnNagSuppression, add_cfn_nag_suppressions
-
-
-@dataclass
-class NotebookInlinePolicies:
-    owner: Construct
-
-    def s3_access(self, buckets: List[IBucket]):
-        return iam.PolicyDocument(
-            statements=[
-                iam.PolicyStatement(
-                    effect=iam.Effect.ALLOW,
-                    actions=[
-                        "s3:GetObject",
-                        "s3:GetBucketLocation",
-                        "s3:ListBucket",
-                        "s3:ListObjects",
-                        "s3:ListBucketMultipartUploads",
-                        "s3:ListMultipartUploadParts",
-                        "s3:PutObject",
-                        "s3:AbortMultipartUpload",
-                        "s3:DeleteObject",
-                    ],
-                    resources=[bucket.arn_for_objects("*") for bucket in buckets]
-                    + [bucket.bucket_arn for bucket in buckets],
-                )
-            ]
-        )
-
-    def s3_solutions_access(self):
-        return iam.PolicyDocument(
-            statements=[
-                iam.PolicyStatement(
-                    effect=iam.Effect.ALLOW,
-                    actions=["s3:GetObject", "s3:ListBucket", "s3:ListObjects",],
-                    resources=[
-                        Fn.sub(
-                            "arn:${AWS::Partition}:s3:::${bucket}-${AWS::Region}/*",
-                            variables={
-                                "bucket": Fn.find_in_map(
-                                    "SourceCode", "General", "S3Bucket"
-                                )
-                            },
-                        ),
-                        Fn.sub(
-                            "arn:${AWS::Partition}:s3:::${bucket}-${AWS::Region}",
-                            variables={
-                                "bucket": Fn.find_in_map(
-                                    "SourceCode", "General", "S3Bucket"
-                                )
-                            },
-                        ),
-                    ],
-                )
-            ]
-        )
-
-    def cloudwatch_logs_write(self):
-        return iam.PolicyDocument(
-            statements=[
-                iam.PolicyStatement(
-                    effect=iam.Effect.ALLOW,
-                    actions=[
-                        "logs:CreateLogGroup",
-                        "logs:CreateLogStream",
-                        "logs:PutLogEvents",
-                    ],
-                    resources=[
-                        f"arn:{Aws.PARTITION}:logs:{Aws.REGION}:{Aws.ACCOUNT_ID}:log-group:/aws/sagemaker/*"
-                    ],
-                )
-            ]
-        )
-
-    def sagemaker_tags_read(self):
-        return iam.PolicyDocument(
-            statements=[
-                iam.PolicyStatement(
-                    effect=iam.Effect.ALLOW,
-                    actions=["sagemaker:ListTags"],
-                    resources=[
-                        f"arn:{Aws.PARTITION}:sagemaker:{Aws.REGION}:{Aws.ACCOUNT_ID}:notebook-instance/*-aws-forecast-visualization"
-                    ],
-                )
-            ]
-        )
 
 
 class Notebook(Construct):
@@ -129,7 +45,7 @@ class Notebook(Construct):
         self.buckets = buckets if buckets else []
         self.deployment = None
         self.instance = None
-        self.policies = NotebookInlinePolicies(self)
+        self.policies = NotebookPolicies(self)
 
         # permissions for the notebook instance
         notebook_role = iam.Role(
@@ -174,7 +90,10 @@ class Notebook(Construct):
                     key="NOTEBOOK_BUCKET",
                     value=self.get_notebook_source(notebook_destination_bucket),
                 ),
-                CfnTag(key="NOTEBOOK_PREFIX", value=self.get_notebook_prefix(),),
+                CfnTag(
+                    key="NOTEBOOK_PREFIX",
+                    value=self.get_notebook_prefix(),
+                ),
             ],
         )
         add_cfn_nag_suppressions(
@@ -203,15 +122,8 @@ class Notebook(Construct):
                 sources=assets,
             )
 
-    def _is_solution_build(self):
-        solutions_assets_regional = self.node.try_get_context(
-            "SOLUTIONS_ASSETS_REGIONAL"
-        )
-        solutions_assets_global = self.node.try_get_context("SOLUTIONS_ASSETS_GLOBAL")
-        return solutions_assets_regional and solutions_assets_global
-
     def get_notebook_prefix(self):
-        if self._is_solution_build():
+        if is_solution_build(self):
             prefix = Fn.sub(
                 "${prefix}/notebooks",
                 variables={
@@ -223,7 +135,7 @@ class Notebook(Construct):
         return Fn.base64(prefix)
 
     def get_notebook_source(self, data_bucket: IBucket):
-        if self._is_solution_build():
+        if is_solution_build(self):
             notebook_source_bucket = Fn.sub(
                 "${bucket}-${region}",
                 variables={

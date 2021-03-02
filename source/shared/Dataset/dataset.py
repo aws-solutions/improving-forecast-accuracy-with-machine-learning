@@ -12,6 +12,7 @@
 # #####################################################################################################################
 
 from operator import itemgetter
+from os import environ
 from typing import Union
 
 from botocore.exceptions import ClientError
@@ -161,6 +162,21 @@ class Dataset(ForecastClient):
 
         return jobs
 
+    def _create_params(self):
+        """
+        Append tags and EncryptionConfig to the parameters to pass to CreateDataset
+        :return: the creation parameters
+        """
+        forecast_role = environ.get("FORECAST_ROLE", None)
+        forecast_kms = environ.get("FORECAST_KMS", None)
+        if forecast_role and forecast_kms:
+            self._params["EncryptionConfig"] = {
+                "KMSKeyArn": forecast_kms,
+                "RoleArn": forecast_role,
+            }
+        self._params["Tags"] = self.tags
+        return self._params
+
     def create(self):
         """
         Create the dataset
@@ -193,7 +209,6 @@ class Dataset(ForecastClient):
                 raise ex
 
         try:
-            self._params["Tags"] = self.tags
-            self.cli.create_dataset(**self._params)
+            self.cli.create_dataset(**self._create_params())
         except self.cli.exceptions.ResourceAlreadyExistsException:
             logger.debug("Dataset %s is already creating" % str(self._dataset_name))

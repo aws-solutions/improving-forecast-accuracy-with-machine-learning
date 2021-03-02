@@ -10,13 +10,20 @@
 #  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions     #
 #  and limitations under the License.                                                                                 #
 # #####################################################################################################################
-from shared.ETL.models import Model, Metadata
+
+from moto import mock_sts
+
+from lambdas.createquicksightanalysis.handler import createquicksightanalysis
 
 
-class MetadataModel(Model):
-    def _get_alias(self, term):
-        """Any unmapped columns are item metadata"""
-        try:
-            return super()._get_alias(term)
-        except ValueError:
-            return Metadata(term).alias
+@mock_sts
+def test_prepare_export(sfn_configuration_data, mocker):
+    config_mock = mocker.MagicMock()
+    mocker.patch("lambdas.createquicksightanalysis.handler.QuickSight", config_mock)
+
+    createquicksightanalysis(sfn_configuration_data, None)
+
+    assert config_mock.called
+    assert config_mock.return_value.create_data_source.called
+    assert config_mock.return_value.create_data_set.called
+    assert config_mock.return_value.create_analysis.called

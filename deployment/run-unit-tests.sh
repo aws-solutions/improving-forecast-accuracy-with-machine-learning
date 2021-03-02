@@ -12,7 +12,7 @@ set -e
 
 # Get reference for all important folders
 template_dir="$PWD"
-source_dir="$template_dir/../source"
+source_dir="$(cd $template_dir/../source; pwd -P)"
 root_dir="$template_dir/.."
 
 echo "------------------------------------------------------------------------------"
@@ -39,7 +39,17 @@ echo "--------------------------------------------------------------------------
 echo "[Test] Run pytest with coverage"
 echo "------------------------------------------------------------------------------"
 cd $source_dir
-pytest --cov --cov-report=term-missing
+# setup coverage report path
+coverage_report_path=$source_dir/tests/coverage-reports/source.coverage.xml
+echo "coverage report path set to $coverage_report_path"
+
+pytest --cov --cov-report=term-missing --cov-report "xml:$coverage_report_path"
+
+# The pytest --cov with its parameters and .coveragerc generates a xml cov-report with `coverage/sources` list
+# with absolute path for the source directories. To avoid dependencies of tools (such as SonarQube) on different
+# absolute paths for source directories, this substitution is used to convert each absolute source directory
+# path to the corresponding project relative path. The $source_dir holds the absolute path for source directory.
+sed -i -e "s,<source>$source_dir,<source>source,g" $coverage_report_path
 
 # deactivate the virtual environment
 deactivate

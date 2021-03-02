@@ -14,7 +14,7 @@
 import json
 import time
 from datetime import datetime
-from functools import cached_property
+from functools import lru_cache
 from hashlib import md5
 from os.path import split, join
 from urllib.parse import urlparse
@@ -94,12 +94,14 @@ class DatasetFile:
         prefix = next(iter(self.filename.split(".")))
         return prefix
 
-    @cached_property
+    @property
+    @lru_cache()
     def last_updated(self) -> datetime:
         obj_info = self.cli.get_object(Bucket=self.bucket, Key=self.key)
         return obj_info.get("LastModified")
 
-    @cached_property
+    @property
+    @lru_cache()
     def etag(self) -> str:
         """
         Get the full MD5 signature of an S3 object (streams in 10MB increments)
@@ -118,7 +120,7 @@ class DatasetFile:
 
         return hexdigest
 
-    @cached_property
+    @lru_cache()
     def size(self) -> int:
         """
         Get the size of the dataset in lines (using S3 select)

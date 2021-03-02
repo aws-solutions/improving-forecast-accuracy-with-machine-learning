@@ -62,7 +62,8 @@ def test_dataset_import_job_status_lifecycle(configuration_data, forecast_stub, 
         },
     )
     forecast_stub.add_response(
-        "describe_dataset_import_job", {"Status": "ACTIVE"},
+        "describe_dataset_import_job",
+        {"Status": "ACTIVE"},
     )
     forecast_stub.add_response(
         "list_tags_for_resource", {"Tags": [{"Key": "SolutionETag", "Value": etag}]}
@@ -87,7 +88,8 @@ def test_dataset_import_job_status_lifecycle(configuration_data, forecast_stub, 
         },
     )
     forecast_stub.add_response(
-        "describe_dataset_import_job", {"Status": "ACTIVE"},
+        "describe_dataset_import_job",
+        {"Status": "ACTIVE"},
     )
     forecast_stub.add_response(
         "list_tags_for_resource",

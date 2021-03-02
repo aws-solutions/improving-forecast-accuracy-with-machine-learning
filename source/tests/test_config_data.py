@@ -50,7 +50,10 @@ def test_dataset_default(configuration_data):
     assert ds.dataset_schema == {
         "Attributes": [
             {"AttributeName": "item_id", "AttributeType": "string"},
-            {"AttributeName": "timestamp", "AttributeType": "timestamp",},
+            {
+                "AttributeName": "timestamp",
+                "AttributeType": "timestamp",
+            },
             {"AttributeName": "demand", "AttributeType": "float"},
         ]
     }
@@ -369,4 +372,23 @@ def test_config_predictor_from_dependent(configuration_data):
     assert (
         predictor.validator.expected_params["AlgorithmArn"]
         == "arn:aws:forecast:::algorithm/CNN-QR"
+    )
+
+
+@mock_sts
+def test_config_predictor_inputdataconfig(configuration_data):
+    config = Config()
+    config.config = configuration_data
+
+    config.config["Default"]["Predictor"]["InputDataConfig"] = {
+        "SupplementaryFeatures": [{"Name": "holiday", "Value": "US"}]
+    }
+    dataset_file = DatasetFile("RetailDemandTRMProphet", "some_bucket")
+
+    predictor = config.predictor(dataset_file, "somethingdefault")
+    assert (
+        predictor.validator.expected_params["InputDataConfig"]["SupplementaryFeatures"][
+            0
+        ]["Name"]
+        == "holiday"
     )

@@ -23,7 +23,11 @@ from shared.logging import get_logger
 logger = get_logger(__name__)
 
 SOLUTION_ID = "SOL0123"
-CLIENT_CONFIG = Config(retries={"max_attempts": 10, "mode": "standard"})
+SOLUTION_VERSION = "1.3.0"
+CLIENT_CONFIG = Config(
+    retries={"max_attempts": 10, "mode": "standard"},
+    user_agent_extra=f"AwsSolution/{SOLUTION_ID}/{SOLUTION_VERSION}",
+)
 
 # declaring these global makes initialization/ performance a bit better if generating many forecasts
 _helpers_service_clients = dict()
@@ -80,6 +84,9 @@ def step_function_step(f):
             elif status.finalized:
                 return output
             else:
+                logger.critical(
+                    "invalid resource detected, status is %s" % status, stack_info=True
+                )
                 raise ResourceInvalid(f"This should not happen: Status is {status}")
 
     return wrapper

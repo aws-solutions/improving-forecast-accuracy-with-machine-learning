@@ -10,11 +10,13 @@
 #  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions     #
 #  and limitations under the License.                                                                                 #
 # #####################################################################################################################
+import logging
 import os
 from datetime import datetime
 
 import boto3
 import pytest
+from moto import mock_forecast
 from moto import mock_s3
 from moto import mock_sts
 
@@ -193,3 +195,32 @@ def test_latest_timestamp(mocked_dsg):
     mocked_dsg.cli.describe_dataset.side_effect = side_effect
     result = mocked_dsg.latest_timestamp
     assert result == "2002_01_01_00_00_00"
+
+
+@mock_sts
+@mock_forecast
+def test_dataset_group_create(caplog):
+    cli = boto3.client("forecast", region_name="us-east-1")
+
+    new_dsg = DatasetGroup(
+        dataset_group_name=DatasetGroupName(name="testdsg"),
+        dataset_domain=DatasetDomain.CUSTOM,
+    )
+
+    # have not yet created - should not see a dataset group yet
+    dsgs = cli.list_dataset_groups()
+    assert dsgs["DatasetGroups"] == []
+
+    # create - should see a dataset group
+    with caplog.at_level(logging.DEBUG):
+        new_dsg.create()
+        dsgs = cli.list_dataset_groups()
+        assert dsgs["DatasetGroups"][0]
+    assert "Dataset Group testdsg not found - will attempt to create" in caplog.messages
+
+    # recreate - should work without issue
+    with caplog.at_level(logging.DEBUG):
+        new_dsg.create()
+        dsgs = cli.list_dataset_groups()
+        assert dsgs["DatasetGroups"][0]
+    assert "Dataset Group testdsg already exists" in caplog.messages

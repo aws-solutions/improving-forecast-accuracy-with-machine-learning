@@ -1,5 +1,5 @@
 # #####################################################################################################################
-#  Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.                                            #
+#  Copyright 2020-2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.                                       #
 #                                                                                                                     #
 #  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance     #
 #  with the License. A copy of the License is located at                                                              #
@@ -11,19 +11,17 @@
 #  and limitations under the License.                                                                                 #
 # #####################################################################################################################
 
-from moto import mock_sts
+from datetime import datetime
 
-from lambdas.datasetutils.handler import prepareexport
+from shared.logging import get_logger
+
+logger = get_logger(__name__)
 
 
-@mock_sts
-def test_prepare_export(sfn_configuration_data, mocker):
-    config_mock = mocker.MagicMock()
-    mocker.patch("lambdas.datasetutils.handler.ForecastETL", config_mock)
+def creategluetablename(event, context):
+    dataset_group_name = event.get("dataset_group_name")
+    timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    glue_table_name = f"{dataset_group_name}_{timestamp}"
 
-    prepareexport(sfn_configuration_data, None)
-
-    assert config_mock.called
-    assert config_mock.return_value.create_input_tables.called
-    assert config_mock.return_value.consolidate_data.called
-    assert config_mock.return_value.cleanup_temp_tables.called
+    logger.info("glue table name for this forecast: %s" % glue_table_name)
+    return glue_table_name

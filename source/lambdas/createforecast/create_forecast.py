@@ -11,60 +11,32 @@
 #  and limitations under the License.                                                                                 #
 # #####################################################################################################################
 
-from os import environ
-
 from shared.Dataset.dataset_file import DatasetFile
-from shared.ETL.forecast_etl import ForecastETL
 from shared.config import Config
+from shared.helpers import step_function_step
 from shared.logging import get_logger
-from shared.quicksight_custom_resources.quicksight import QuickSight
+from shared.status import Status
 
 logger = get_logger(__name__)
 
 
-def prepareexport(event, context):
+@step_function_step
+def handler(event, context):
     """
-    Create consolidated export tables for forecast visualization
+    Create/ monitor Amazon Forecast forecast creation
     :param event: lambda event
     :param context: lambda context
-    :return: glue table name
+    :return: forecast / forecast export status and forecast ARN
     """
     config = Config.from_sfn(event)
-
     dataset_file = DatasetFile(event.get("dataset_file"), event.get("bucket"))
     dataset_group_name = event.get("dataset_group_name")
+
     forecast = config.forecast(dataset_file, dataset_group_name)
 
-    workgroup = environ.get("WORKGROUP_NAME")
-    schema = environ.get("SCHEMA_NAME")
-    principal = environ.get("QUICKSIGHT_PRINCIPAL")
-    source_template = environ.get("QUICKSIGHT_SOURCE")
+    if forecast.status == Status.DOES_NOT_EXIST:
+        # TODO: publish predictor stats to CloudWatch prior to create
+        logger.info("Creating forecast for %s" % dataset_group_name)
+        forecast.create()
 
-    etl = ForecastETL(
-        workgroup=workgroup,
-        schema=schema,
-        config=config,
-        dataset_file=dataset_file,
-        forecast=forecast,
-    )
-
-    try:
-        etl.create_input_tables()
-        etl.consolidate_data()
-    except ValueError as e:
-        if "already exists" not in str(e):
-            raise e
-    finally:
-        etl.cleanup_temp_tables()
-
-    # attempt to create QuickSight analysis
-    qs = QuickSight(
-        workgroup=workgroup,
-        table_name=etl.output_table_name,
-        schema=schema,
-        principal=principal,
-        source_template=source_template,
-    )
-    qs.create_data_source()
-    qs.create_data_set()
-    qs.create_analysis()
+    return forecast.status, forecast.arn

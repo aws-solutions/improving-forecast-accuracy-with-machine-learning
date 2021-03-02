@@ -26,7 +26,6 @@ from aws_cdk.core import (
     IStackSynthesizer,
     ISynthesisSession,
     DefaultStackSynthesizer,
-    App,
 )
 
 logger = logging.getLogger("cdk-helper")
@@ -34,22 +33,29 @@ logger = logging.getLogger("cdk-helper")
 
 @dataclass
 class CloudFormationTemplate:
+    """Encapsulates the transformations that are required on a CDK generated CloudFormation template for AWS Solutions"""
+
     path: Path
     contents: Dict = field(repr=False)
+    assets: Path = field(repr=False)
     stack_name: str = field(repr=False, init=False)
     cloud_assembly_path: Path = field(repr=False, init=False)
-    assets: Dict = field(repr=False, init=False)
     assets_global: List[Path] = field(repr=False, default_factory=list, init=False)
     assets_regional: List[Path] = field(repr=False, default_factory=list, init=False)
+    global_asset_name: str = field(repr=False, init=False)
 
     def __post_init__(self):
         self.cloud_assembly_path = self.path.parent
         self.stack_name = self.path.stem.split(".")[0]
-        stack_assets_path = next(
-            self.cloud_assembly_path.glob(self.stack_name + ".assets.json")
-        )
-        self.assets = json.loads(stack_assets_path.read_text())
         self.assets_global.append(self.path)
+        try:
+            self.global_asset_name = self.contents["Metadata"][
+                "aws:solutions:templatename"
+            ]
+        except KeyError:
+            logger.error(
+                "you must provide a filename to TemplateOptions for each stack to provide solutions template metadata"
+            )
 
     def delete_bootstrap_parameters(self):
         """Remove the CDK bootstrap parameters, since this stack will not be bootstrapped"""
@@ -68,8 +74,9 @@ class CloudFormationTemplate:
                 del self.contents["Rules"]
 
     def delete_cdk_helpers(self):
+        """Remove the CDK bucket deployment helpers, since solutions don't have a bootstrap bucket."""
         to_delete = []
-        for (resource_name, resource) in self.contents.get("Resources").items():
+        for (resource_name, resource) in self.contents.get("Resources", {}).items():
             if "Custom::CDKBucketDeployment" in resource["Type"]:
                 to_delete.append(resource_name)
             if "CDKBucketDeployment" in resource_name:
@@ -78,9 +85,42 @@ class CloudFormationTemplate:
             logger.info(f"deleting resource {resource}")
             del self.contents["Resources"][resource]
 
+    def patch_nested(self):
+        """Patch nested stacks for S3 deployment compatibility"""
+        template_output_bucket = os.getenv(
+            "TEMPLATE_OUTPUT_BUCKET",
+            {"Fn::FindInMap": ["SourceCode", "General", "S3Bucket"]},
+        )
+        for (resource_name, resource) in self.contents.get("Resources", {}).items():
+            resource_type = resource.get("Type")
+            if resource_type == "AWS::CloudFormation::Stack":
+                try:
+                    nested_stack_filename = resource["Metadata"][
+                        "aws:solutions:templatename"
+                    ]
+                except KeyError:
+                    raise KeyError("nested stack missing required TemplateOptions")
+
+                # update CloudFormation resource properties for S3Bucket and S3Key
+                resource["Properties"]["TemplateURL"] = {
+                    "Fn::Join": [
+                        "",
+                        [
+                            "https://",
+                            template_output_bucket,
+                            ".s3.",
+                            {"Ref": "AWS::URLSuffix"},
+                            "/",
+                            {"Fn::FindInMap": ["SourceCode", "General", "KeyPrefix"]},
+                            "/",
+                            nested_stack_filename,
+                        ],
+                    ]
+                }
+
     def patch_lambda(self):
         """Patch the lambda functions for S3 deployment compatibility"""
-        for (resource_name, resource) in self.contents.get("Resources").items():
+        for (resource_name, resource) in self.contents.get("Resources", {}).items():
             resource_type = resource.get("Type")
             if (
                 resource_type == "AWS::Lambda::Function"
@@ -88,6 +128,8 @@ class CloudFormationTemplate:
             ):
                 logger.info(f"{resource_name} ({resource_type}) patching")
 
+                # the key for S3Key for AWS::Lambda:LayerVersion is under "Content".
+                # the key for S3Key FOR AWS::Lambda::Function is under "Code"
                 content_key = (
                     "Content"
                     if resource_type == "AWS::Lambda::LayerVersion"
@@ -99,7 +141,7 @@ class CloudFormationTemplate:
                     )[0]
                 except KeyError:
                     logger.warning(
-                        "found resource without an S3Key - skipping packaging"
+                        "found resource without an S3Key (this typically occurs when using inline code or during test)"
                     )
                     continue
 
@@ -107,13 +149,14 @@ class CloudFormationTemplate:
                 asset_source_path = self.path.parent.joinpath(asset["source"]["path"])
                 asset_packaging = asset["source"]["packaging"]
 
+                # CDK does not zip assets prior to deployment - we do it here if a zip asset is detected
                 if asset_packaging == "zip":
                     # create archive if necessary
                     logger.info(f"{resource_name} packaging into .zip file")
                     archive = shutil.make_archive(
                         base_name=asset_source_path,
                         format="zip",
-                        root_dir=asset_source_path,
+                        root_dir=str(asset_source_path),
                     )
                 elif asset_packaging == "file":
                     archive = self.cloud_assembly_path.joinpath(asset["source"]["path"])
@@ -122,12 +165,12 @@ class CloudFormationTemplate:
                         f"Unsupported asset packaging format: {asset_packaging}"
                     )
 
-                # rename archive
+                # rename archive to match the resource name it was generated for
                 archive_name = f"{resource_name}.zip"
                 archive_path = self.cloud_assembly_path.joinpath(archive_name)
                 shutil.move(src=archive, dst=archive_path)
 
-                # update CloudFormation resource
+                # update CloudFormation resource properties for S3Bucket and S3Key
                 resource["Properties"][content_key]["S3Bucket"] = {
                     "Fn::Join": [
                         "-",
@@ -150,44 +193,64 @@ class CloudFormationTemplate:
                 # add resource to the list of regional assets
                 self.assets_regional.append(archive_path)
 
+    def _build_asset_path(self, asset_path):
+        asset_output_path = self.cloud_assembly_path.joinpath(asset_path)
+        asset_output_path.mkdir(parents=True, exist_ok=True)
+        return asset_output_path
+
     def save(self, asset_path_global: Path = None, asset_path_regional: Path = None):
+        """Save the template (will save to the asset paths if specified)"""
         self.path.write_text(json.dumps(self.contents, indent=2))
 
+        # global solutions assets - default folder location is "global-s3-assets"
         if asset_path_global:
+            asset_path = self._build_asset_path(asset_path_global)
             for asset in self.assets_global:
                 shutil.copy(
                     str(asset),
-                    Path(asset_path_global).joinpath(
-                        "improving-forecast-accuracy-with-machine-learning.template"
-                    ),
+                    str(asset_path.joinpath(self.global_asset_name)),
                 )
 
+        # regional solutions assets - default folder location is "regional-s3-assets"
         if asset_path_regional:
+            asset_path = self._build_asset_path(asset_path_regional)
             for asset in self.assets_regional:
-                shutil.copy(str(asset), str(asset_path_regional))
+                shutil.copy(str(asset), str(asset_path))
 
 
 @jsii.implements(IStackSynthesizer)
 class SolutionStackSubstitions(DefaultStackSynthesizer):
+    """Used to handle AWS Solutions template substitutions and sanitization"""
+
     substitutions = None
     substitution_re = re.compile("%%[a-zA-Z-_][a-zA-Z-_]+%%")
 
-    @staticmethod
-    def get_parameter(app: App, key: str):
-        from_env = os.getenv(key, None)
-        if from_env:
-            return from_env
+    def _template_names(self, session: ISynthesisSession) -> List[Path]:
+        assembly_output_path = Path(session.assembly.outdir)
+        templates = [assembly_output_path.joinpath(self._stack.template_file)]
 
-        from_ctx = app.node.try_get_context(key)
-        if from_ctx:
-            return from_ctx
-
-        raise ValueError(f"Missing parameter: {key}")
+        # add this stack's children to the outputs to process (todo: this only works for singly-nested stacks)
+        for child in self._stack.node.children:
+            child_template = getattr(child, "template_file", None)
+            if child_template:
+                templates.append(assembly_output_path.joinpath(child_template))
+        return templates
 
     def _templates(self, session: ISynthesisSession) -> (Path, Dict):
-        template_paths = Path(session.assembly.outdir).glob("*.template.json")
-        for path in template_paths:
-            yield CloudFormationTemplate(path, json.loads(path.read_text()))
+        assembly_output_path = Path(session.assembly.outdir)
+
+        assets = {}
+        try:
+            assets = json.loads(
+                next(
+                    assembly_output_path.glob(self._stack.stack_name + "*.assets.json")
+                ).read_text()
+            )
+        except StopIteration:
+            pass  # use the default (no assets)
+
+        for path in self._template_names(session):
+            yield CloudFormationTemplate(path, json.loads(path.read_text()), assets)
 
     def synthesize(self, session: ISynthesisSession):
         # when called with `cdk deploy` this outputs to cdk.out
@@ -202,8 +265,8 @@ class SolutionStackSubstitions(DefaultStackSynthesizer):
         logger.info(
             f"solutions parameter substitution in {session.assembly.outdir} started"
         )
-        templates = Path(session.assembly.outdir).glob("*.template.json")
-        for template in templates:
+        for template in self._template_names(session):
+            logger.info(f"substutiting parameters in {str(template)}")
             with FileInput(template, inplace=True) as template_lines:
                 for line in template_lines:
                     # handle all template subsitutions in the line
@@ -218,6 +281,7 @@ class SolutionStackSubstitions(DefaultStackSynthesizer):
                         line = line.replace(match, replacement)
                     # print the (now substituted) line in the context of template_lines
                     print(line, end="")
+            logger.info(f"substituting parameters in {str(template)} completed")
         logger.info("solutions parameter substitution completed")
 
         # do not perform solution resource/ template cleanup if asset paths not passed
@@ -229,6 +293,7 @@ class SolutionStackSubstitions(DefaultStackSynthesizer):
         )
         for template in self._templates(session):
             template.patch_lambda()
+            template.patch_nested()
             template.delete_bootstrap_parameters()
             template.delete_cdk_helpers()
             template.save(

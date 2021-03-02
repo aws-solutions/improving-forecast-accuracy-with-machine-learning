@@ -415,6 +415,10 @@
                         "Type": "DECIMAL"
                     },
                     {
+                        "Name": "mean",
+                        "Type": "DECIMAL"
+                    },
+                    {
                         "Name": "dimension_1",
                         "Type": "STRING"
                     },

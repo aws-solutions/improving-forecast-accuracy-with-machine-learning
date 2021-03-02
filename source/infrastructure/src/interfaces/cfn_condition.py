@@ -17,6 +17,8 @@ from aws_cdk.core import CfnCondition, IAspect, IConstruct
 
 @jsii.implements(IAspect)
 class ConditionalResources:
+    """Mark any CDK construct as conditional (this is useful to apply to stacks and L2+ constructs)"""
+
     def __init__(self, condition: CfnCondition):
         self.condition = condition
 

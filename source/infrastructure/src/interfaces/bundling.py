@@ -11,6 +11,7 @@
 #  and limitations under the License.                                                                                 #
 # #####################################################################################################################
 import logging
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -21,8 +22,20 @@ from aws_cdk.core import ILocalBundling, BundlingOptions
 logger = logging.getLogger("cdk-helper")
 
 
+def copytree(src, dst, symlinks=False, ignore=None):
+    for item in os.listdir(src):
+        s = os.path.join(src, item)
+        d = os.path.join(dst, item)
+        if os.path.isdir(s):
+            shutil.copytree(s, d, symlinks, ignore)
+        else:
+            shutil.copy2(s, d)
+
+
 @jsii.implements(ILocalBundling)
 class SolutionBundling:
+    """This interface allows AWS Solutions to package lambda functions without the use of Docker"""
+
     def __init__(self, source_path, to_bundle, libs, install_path):
         self.source_path = source_path
         self.to_bundle = to_bundle
@@ -34,11 +47,11 @@ class SolutionBundling:
         requirements_path = Path(output_dir, "requirements.txt")
 
         # copy source and libs
-        shutil.copytree(source, output_dir, dirs_exist_ok=True)
+        copytree(source, output_dir)
         for lib in self.libs:
             lib_source = Path(self.source_path).joinpath(lib)
             lib_dest = Path(output_dir).joinpath(lib)
-            shutil.copytree(lib_source, lib_dest, dirs_exist_ok=True)
+            shutil.copytree(lib_source, lib_dest)
 
         # install any discovered requirements
         if requirements_path.exists():

@@ -13,35 +13,66 @@
 
 import pytest
 
-from lambdas.createforecast.handler import createforecast
+from lambdas.createforecast.create_forecast import handler as create_forecast
+from lambdas.createforecast.create_forecast_export import (
+    handler as create_forecast_export,
+)
 from shared.helpers import ResourceInvalid
 from shared.status import Status
 
 
-def test_create_forecast(sfn_configuration_data, mocker):
-    status_override = Status.DOES_NOT_EXIST
-
+@pytest.fixture(params=[Status.DOES_NOT_EXIST, Status.ACTIVE])
+def mock_config(request, mocker):
     class MockForecast:
         @property
         def status(self):
-            return status_override
+            return request.param
 
         def create(self):
             pass
+
+        def export(self, dataset_file):
+            _mocker = mocker.MagicMock()
+            type(_mocker).status = mocker.PropertyMock(return_value=Status.ACTIVE)
+            return _mocker
 
         @property
         def arn(self):
             return "arn:aws:forecast:::forecast/forecast-id"
 
     class MockConfig:
+        def __init__(self):
+            self._forecast = MockForecast()
+
         @classmethod
         def from_sfn(cls, event):
             return MockConfig()
 
         def forecast(self, *args, **kwargs):
-            return MockForecast()
+            return self._forecast
 
-    mocker.patch("lambdas.createforecast.handler.Config", MockConfig)
+    return MockConfig, request.param
 
-    with pytest.raises(ResourceInvalid):
-        arn = createforecast(sfn_configuration_data, None)
+
+def test_create_forecast(sfn_configuration_data, mock_config, mocker):
+    mock_config, status = mock_config
+    mocker.patch("lambdas.createforecast.create_forecast.Config", mock_config)
+
+    if status == Status.DOES_NOT_EXIST:
+        with pytest.raises(ResourceInvalid):
+            create_forecast(sfn_configuration_data, None)
+    else:
+        result = create_forecast(sfn_configuration_data, None)
+        assert result == "arn:aws:forecast:::forecast/forecast-id"
+
+
+def test_create_forecast_export(sfn_configuration_data, mock_config, mocker):
+    mock_config, status = mock_config
+    mocker.patch("lambdas.createforecast.create_forecast_export.Config", mock_config)
+
+    if status == Status.DOES_NOT_EXIST:
+        with pytest.raises(ValueError):
+            create_forecast_export(sfn_configuration_data, None)
+    else:
+        result = create_forecast_export(sfn_configuration_data, None)
+        assert result == "arn:aws:forecast:::forecast/forecast-id"

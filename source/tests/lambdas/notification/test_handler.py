@@ -28,7 +28,9 @@ def s3_event():
             {
                 "eventVersion": "2.2",
                 "s3": {
-                    "bucket": {"name": "test-bucket",},
+                    "bucket": {
+                        "name": "test-bucket",
+                    },
                     "object": {"key": "test-key.csv"},
                 },
             }

@@ -13,6 +13,7 @@
 
 from copy import deepcopy
 from datetime import datetime
+from os import environ
 
 import boto3
 import pytest
@@ -32,6 +33,19 @@ def forecast_stub():
     client = boto3.client("forecast", region_name="us-east-1")
     with Stubber(client) as stubber:
         yield stubber
+
+
+@pytest.fixture
+def kms_enabled():
+    environ.update(
+        {
+            "FORECAST_ROLE": "role",
+            "FORECAST_KMS": "kms",
+        }
+    )
+    yield
+    environ.pop("FORECAST_ROLE")
+    environ.pop("FORECAST_KMS")
 
 
 @mock_sts
@@ -110,7 +124,8 @@ def test_dataset_create_noop_errors(configuration_data, forecast_stub):
     create_params["Tags"] = [{"Key": "SolutionId", "Value": "SOL0123"}]
 
     forecast_stub.add_response(
-        "describe_dataset", params,
+        "describe_dataset",
+        params,
     )
 
     forecast_stub.add_response(
@@ -118,7 +133,8 @@ def test_dataset_create_noop_errors(configuration_data, forecast_stub):
     )
 
     forecast_stub.add_response(
-        "describe_dataset", params,
+        "describe_dataset",
+        params,
     )
 
     dataset.cli = forecast_stub.client
@@ -173,7 +189,13 @@ def test_dataset_import_timestamp_format_none(configuration_data, forecast_stub)
 
 
 @mock_sts
-@pytest.mark.parametrize("format", ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd",])
+@pytest.mark.parametrize(
+    "format",
+    [
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd",
+    ],
+)
 def test_dataset_import_timestamp_format(configuration_data, forecast_stub, format):
     config = Config()
     config.config = configuration_data
@@ -198,3 +220,29 @@ def test_dataset_import_timestamp_format(configuration_data, forecast_stub, form
     dataset.cli = forecast_stub.client
 
     assert dataset.timestamp_format == format
+
+
+@mock_sts
+def test_create_params_encryption(configuration_data, kms_enabled):
+    config = Config()
+    config.config = configuration_data
+
+    dataset_file = DatasetFile("RetailDemandTRM.csv", "some_bucket")
+    dataset = config.dataset(dataset_file)
+
+    create_params = dataset._create_params()
+    assert "EncryptionConfig" in create_params.keys()
+    assert create_params["EncryptionConfig"]["KMSKeyArn"] == "kms"
+    assert create_params["EncryptionConfig"]["RoleArn"] == "role"
+
+
+@mock_sts
+def test_create_params_no_encryption(configuration_data):
+    config = Config()
+    config.config = configuration_data
+
+    dataset_file = DatasetFile("RetailDemandTRM.csv", "some_bucket")
+    dataset = config.dataset(dataset_file)
+
+    create_params = dataset._create_params()
+    assert "EncryptionConfig" not in create_params.keys()

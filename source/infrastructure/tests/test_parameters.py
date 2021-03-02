@@ -27,8 +27,8 @@ from aws_cdk.aws_lambda import (
 )
 from aws_cdk.core import App
 
+from forecast.stack import ForecastStack
 from interfaces import SolutionStackSubstitions
-from stack import ForecastStack
 
 
 def mock_lambda_init(
@@ -71,7 +71,7 @@ def environment():
             "BUCKET_NAME": "test",
             "SOLUTION_NAME": "Improving Forecast Accuracy With Machine Learning",
             "QUICKSIGHT_SOURCE": "none",
-            "VERSION": "1.2.0",
+            "VERSION": "1.3.0",
         }
     )
 
@@ -92,7 +92,7 @@ def synthesis_cdk(session_mocker):
             "SOLUTION_NAME": "Improving Forecast Accuracy With Machine Learning",
             "QUICKSIGHT_SOURCE": "none",
             "NOTEBOOKS": "none",
-            "VERSION": "1.2.0",
+            "VERSION": "1.3.0",
         },
     )
     synthesizer = SolutionStackSubstitions(qualifier="hnb659fds")
@@ -107,8 +107,6 @@ def synthesis_solutions(session_mocker):
     session_mocker.patch("aws_cdk.aws_lambda.Function.__init__", mock_lambda_init)
     session_mocker.patch("aws_cdk.aws_lambda.LayerVersion.__init__", mock_layer_init)
 
-    asset_directory = "assets"
-
     app = App(
         runtime_info=False,
         stack_traces=False,
@@ -119,9 +117,9 @@ def synthesis_solutions(session_mocker):
             "SOLUTION_NAME": "Improving Forecast Accuracy With Machine Learning",
             "QUICKSIGHT_SOURCE": "none",
             "NOTEBOOKS": "none",
-            "VERSION": "1.2.0",
-            "SOLUTIONS_ASSETS_REGIONAL": asset_directory,
-            "SOLUTIONS_ASSETS_GLOBAL": asset_directory,
+            "VERSION": "1.3.0",
+            "SOLUTIONS_ASSETS_REGIONAL": "assets-regional",
+            "SOLUTIONS_ASSETS_GLOBAL": "assets-global",
         },
     )
     synthesizer = SolutionStackSubstitions(qualifier="hnb659fds")
@@ -136,8 +134,18 @@ def template_cdk(synthesis_cdk):
 
 
 @pytest.fixture(scope="session")
+def templates_cdk(synthesis_cdk):
+    return synthesis_cdk.stacks
+
+
+@pytest.fixture(scope="session")
 def template_solutions(synthesis_solutions):
     return synthesis_solutions.stacks[0].template
+
+
+@pytest.fixture(scope="session")
+def templates_solutions(synthesis_solutions):
+    return synthesis_solutions.stacks
 
 
 REQUIRED_PARAMETERS = [
@@ -151,7 +159,7 @@ REQUIRED_PARAMETERS = [
 
 
 @pytest.mark.parametrize("param_name", REQUIRED_PARAMETERS)
-def test_parameters(template_cdk, param_name):
+def test_parameters(template_cdk, param_name, templates_cdk):
     # these parameters are found, and each has a description
     assert param_name in template_cdk["Parameters"]
     assert template_cdk["Parameters"][param_name][
@@ -227,7 +235,7 @@ def test_notebook_prefix_cdk(template_cdk):
     assert notebook_prefix_tag == {"Fn::Base64": "notebooks"}
 
 
-def test_notebook_prefix_cdk(template_solutions):
+def test_notebook_prefix_solutions(template_solutions):
     tags = template_solutions["Resources"]["NotebookInstance"]["Properties"]["Tags"]
     notebook_prefix_tag = [
         tag["Value"] for tag in tags if tag["Key"] == "NOTEBOOK_PREFIX"

@@ -10,27 +10,28 @@
 #  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions     #
 #  and limitations under the License.                                                                                 #
 # #####################################################################################################################
-from shared.Dataset.data_timestamp_format import DataTimestampFormat
-from shared.ETL.models import Model, Dimension
+
+from shared.Dataset.dataset_file import DatasetFile
+from shared.config import Config
+from shared.helpers import step_function_step
+from shared.logging import get_logger
+from shared.status import Status
+
+logger = get_logger(__name__)
 
 
-class TargetTimeSeriesModel(Model):
-    """Any unmapped columns are forecast metadata"""
+@step_function_step
+def handler(event, context) -> (Status, str):
+    config = Config.from_sfn(event)
+    dataset_file = DatasetFile(event.get("dataset_file"), event.get("bucket"))
+    dataset_group_name = event.get("dataset_group_name")
 
-    def _get_alias(self, term):
-        try:
-            return super()._get_alias(term)
-        except ValueError:
-            return Dimension(term).alias
+    predictor = config.predictor(dataset_file, dataset_group_name)
 
-    def set_timestamp_format(self, ts_format: DataTimestampFormat):
-        if ts_format == "yyyy-MM-dd HH:mm:ss":
-            ts_format = "%Y-%m-%d %H:%i:%s"
-        elif ts_format == "yyyy-MM-dd":
-            ts_format = "%Y-%m-%d"
-        else:
-            raise ValueError(f"Unexpected timestamp format: {ts_format}")
+    if predictor.status == Status.ACTIVE:
+        logger.info("Creating predictor backtest export for %s" % dataset_file.prefix)
+        export = predictor.export(dataset_file)
+    else:
+        raise ValueError("predictor status must be ACTIVE to export a predictor")
 
-        self[
-            "timestamp"
-        ].expression = f"to_iso8601(date_parse(timestamp, '{ts_format}')) AS isotime"
+    return export.status, predictor.arn

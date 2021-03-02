@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2021-03-02
+### Added
+- The solution now supports the [Amazon Forecast Weather Index](https://aws.amazon.com/blogs/machine-learning/amazon-forecast-weather-index-automatically-include-local-weather-to-increase-your-forecasting-model-accuracy/).
+For usage examples, reference the [Implementation Guide](https://docs.aws.amazon.com/solutions/latest/improving-forecast-accuracy-with-machine-learning/welcome.html).
+- The solution now includes a demo stack (forecasting the number of NYC City taxi pickups in the next 1 hour in each of
+260 pickup zones). The demo features AWS managed weather data and holiday features.
+### Changed
+- The solution now uses an AWS Glue version 2.0 Spark job to transform and aggregate forecast input data and metadata, 
+predictor backtest export data and forecast export data for use in Amazon Athena and Amazon QuickSight for query and
+visualization.
+### Fixed 
+- The solution now supports [Amazon Forecast Holiday Calendars](https://aws.amazon.com/about-aws/whats-new/2020/08/amazon-forecast-adds-holiday-calendars-for-66-countries/) 
+to help you improve forecast accuracy for items sensitive to holiday demand.
+
 ## [1.2.0] - 2020-11-23
 ### Added
 - Implementation now uses [AWS Cloud Development Kit (AWS CDK)](https://aws.amazon.com/cdk/)

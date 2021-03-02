@@ -41,6 +41,12 @@ def test_generate_name(lambda_event):
 
 def test_generate_long_name(lambda_event):
     lambda_event["ResourceProperties"]["StackName"] = "a" * 63
+    generate_name(lambda_event, None)
+    assert helper.Data["Name"] == "purpose-uniqueid"
+
+
+def test_generate_invalid_name(lambda_event):
+    lambda_event["ResourceProperties"]["BucketPurpose"] = "a" * 630
     with pytest.raises(ValueError):
         generate_name(lambda_event, None)
 

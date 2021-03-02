@@ -21,27 +21,17 @@ logger = get_logger(__name__)
 
 
 @step_function_step
-def createforecast(event, context):
-    """
-    Create/ monitor Amazon Forecast forecast creation
-    :param event: lambda event
-    :param context: lambda context
-    :return: forecast / forecast export status and forecast ARN
-    """
+def handler(event, context) -> (Status, str):
     config = Config.from_sfn(event)
     dataset_file = DatasetFile(event.get("dataset_file"), event.get("bucket"))
     dataset_group_name = event.get("dataset_group_name")
 
     forecast = config.forecast(dataset_file, dataset_group_name)
-    tracked = forecast
-
-    if forecast.status == Status.DOES_NOT_EXIST:
-        # TODO: publish predictor stats to CloudWatch prior to create
-        logger.info("Creating forecast for %s" % dataset_file.prefix)
-        forecast.create()
 
     if forecast.status == Status.ACTIVE:
         logger.info("Creating forecast export for %s" % dataset_file.prefix)
-        tracked = forecast.export(dataset_file)
+        export = forecast.export(dataset_file)
+    else:
+        raise ValueError("forecast status must be ACTIVE to export a forecast")
 
-    return tracked.status, forecast.arn
+    return export.status, forecast.arn

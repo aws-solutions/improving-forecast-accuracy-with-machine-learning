@@ -31,13 +31,28 @@ def event_invalid_version():
 
 @pytest.fixture(scope="function")
 def event_no_bucket():
-    return {"Records": [{"eventVersion": "2.2",}]}
+    return {
+        "Records": [
+            {
+                "eventVersion": "2.2",
+            }
+        ]
+    }
 
 
 @pytest.fixture(scope="function")
 def event_no_key():
     return {
-        "Records": [{"eventVersion": "2.2", "s3": {"bucket": {"name": "test-bucket",}}}]
+        "Records": [
+            {
+                "eventVersion": "2.2",
+                "s3": {
+                    "bucket": {
+                        "name": "test-bucket",
+                    }
+                },
+            }
+        ]
     }
 
 

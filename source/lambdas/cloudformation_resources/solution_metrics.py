@@ -14,12 +14,13 @@
 import logging
 import uuid
 from datetime import datetime
+from os import getenv
 
 import requests
 from crhelper import CfnResource
 
 logger = logging.getLogger(__name__)
-helper = CfnResource(log_level="INFO")
+helper = CfnResource(log_level=getenv("LOG_LEVEL", "WARNING"))
 METRICS_ENDPOINT = "https://metrics.awssolutionsbuilder.com/generic"
 
 

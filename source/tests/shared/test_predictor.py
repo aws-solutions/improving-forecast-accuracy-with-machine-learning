@@ -12,6 +12,7 @@
 # #####################################################################################################################
 
 from datetime import datetime, timezone
+from os import environ
 
 import boto3
 import pytest
@@ -21,7 +22,7 @@ from moto import mock_sts, mock_s3
 
 from shared.Dataset.dataset_file import DatasetFile
 from shared.DatasetGroup.dataset_group import LATEST_DATASET_UPDATE_FILENAME_TAG
-from shared.Predictor.predictor import NotMostRecentUpdate
+from shared.Predictor.predictor import NotMostRecentUpdate, Predictor
 from shared.config import Config
 from shared.status import Status
 
@@ -42,6 +43,19 @@ def forecast_stub():
         yield stubber
 
 
+@pytest.fixture
+def kms_enabled():
+    environ.update(
+        {
+            "FORECAST_ROLE": "role",
+            "FORECAST_KMS": "kms",
+        }
+    )
+    yield
+    environ.pop("FORECAST_ROLE")
+    environ.pop("FORECAST_KMS")
+
+
 @mock_sts
 def test_init_predictor(forecast_stub, configuration_data):
     config = Config()
@@ -56,7 +70,6 @@ def test_init_predictor(forecast_stub, configuration_data):
     for k, v in config.config_item(dataset_file, "Predictor").items():
         if k != "MaxAge":
             assert predictor._predictor_params.get(k) == v
-    # assert predictor._predictor_config == config.config_item(dataset_file, "Predictor")
 
 
 @mock_sts
@@ -122,7 +135,9 @@ def mocked_predictor(configuration_data):
             cli = boto3.client("s3", region_name="us-east-1")
             cli.create_bucket(Bucket=bucket_name)
             cli.put_object(
-                Bucket=bucket_name, Key=key, Body=f"some-contents",
+                Bucket=bucket_name,
+                Key=key,
+                Body=f"some-contents",
             )
 
             config = Config()
@@ -201,13 +216,13 @@ def test_predictor_create_valid(mocked_predictor, mocker):
 def test_predictor_latest_timestamp(format, expected, mocked_predictor, mocker):
     mocked_predictor.history = mocker.MagicMock()
     mocked_predictor.history.return_value = [
-        {"LastModificationTime": datetime(1999, 1, 1)},
-        {"LastModificationTime": datetime(2002, 1, 1)},
-        {"LastModificationTime": datetime(2000, 1, 1)},
-        {"LastModificationTime": datetime(1998, 1, 1)},
+        {"CreationTime": datetime(1999, 1, 1)},
+        {"CreationTime": datetime(2002, 1, 1)},
+        {"CreationTime": datetime(2000, 1, 1)},
+        {"CreationTime": datetime(1998, 1, 1)},
     ]
 
-    assert mocked_predictor.latest_timestamp(format=format) == expected
+    assert mocked_predictor._latest_timestamp(format) == expected
 
 
 @pytest.mark.parametrize(
@@ -239,7 +254,12 @@ def test_status_last_predictor_none(mocked_predictor, mocker):
 
 
 @pytest.mark.parametrize(
-    "status", [Status.CREATE_FAILED, Status.DELETE_FAILED, Status.UPDATE_FAILED,]
+    "status",
+    [
+        Status.CREATE_FAILED,
+        Status.DELETE_FAILED,
+        Status.UPDATE_FAILED,
+    ],
 )
 def test_status_last_predictor_failed(mocked_predictor, mocker, status):
     predictor_description = {"PredictorArn": "some::arn", "Status": str(status)}
@@ -310,3 +330,87 @@ def test_status_in_interval(mocked_predictor, mocker):
     )
 
     assert mocked_predictor._status_predictor_too_old(past_status)
+
+
+@mock_sts
+@pytest.mark.parametrize(
+    "predictor_config",
+    [
+        {
+            "InputDataConfig": {
+                "SupplementaryFeatures": [
+                    {
+                        "Name": "holiday",
+                        "Value": "CA",
+                    }
+                ]
+            }
+        },
+        {
+            "InputDataConfig": {
+                "SupplementaryFeatures": [
+                    {
+                        "Name": "weather",
+                        "Value": "CA",
+                    }
+                ]
+            }
+        },
+        {
+            "InputDataConfig": {
+                "SupplementaryFeatures": [
+                    {
+                        "Name": "holiday",
+                        "Value": "CA",
+                    },
+                    {
+                        "Name": "weather",
+                        "Value": "CA",
+                    },
+                ]
+            }
+        },
+        {},
+    ],
+    ids=["holidays", "weather", "both", "none"],
+)
+def test_input_data_config_override(mocker, predictor_config):
+    predictor = Predictor(
+        mocker.MagicMock(),
+        mocker.MagicMock(),
+        **predictor_config,
+    )
+
+    if predictor_config:
+        assert predictor._input_data_config[
+            "SupplementaryFeatures"
+        ] == predictor_config.get("InputDataConfig").get("SupplementaryFeatures")
+    else:
+        assert predictor._input_data_config.get("SupplementaryFeatures", None) == None
+    assert predictor._input_data_config["DatasetGroupArn"]
+
+
+@mock_sts
+def test_create_params_encryption(configuration_data, kms_enabled):
+    config = Config()
+    config.config = configuration_data
+
+    dataset_file = DatasetFile("RetailDemandTRM.csv", "some_bucket")
+    dataset = config.dataset(dataset_file)
+
+    create_params = dataset._create_params()
+    assert "EncryptionConfig" in create_params.keys()
+    assert create_params["EncryptionConfig"]["KMSKeyArn"] == "kms"
+    assert create_params["EncryptionConfig"]["RoleArn"] == "role"
+
+
+@mock_sts
+def test_create_params_no_encryption(configuration_data):
+    config = Config()
+    config.config = configuration_data
+
+    dataset_file = DatasetFile("RetailDemandTRM.csv", "some_bucket")
+    dataset = config.dataset(dataset_file)
+
+    create_params = dataset._create_params()
+    assert "EncryptionConfig" not in create_params.keys()

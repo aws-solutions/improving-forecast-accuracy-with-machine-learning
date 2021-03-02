@@ -13,10 +13,12 @@
 from typing import Dict
 
 from aws_cdk.aws_lambda import IFunction
-from aws_cdk.core import Construct, CfnResource
+from aws_cdk.core import Construct, CfnResource, Fn, CfnCondition
 
 
 class Metrics(Construct):
+    """Used to track anonymous solution deployment metrics."""
+
     def __init__(
         self,
         scope: Construct,
@@ -26,6 +28,14 @@ class Metrics(Construct):
     ):
         super().__init__(scope, id)
 
+        send_anonymous_usage_data = CfnCondition(
+            self,
+            "SendAnonymousUsageData",
+            expression=Fn.condition_equals(
+                Fn.find_in_map("Solution", "Data", "SendAnonymousUsageData"), "Yes"
+            ),
+        )
+
         properties = {"ServiceToken": metrics_function.function_arn, **metrics}
         self.solution_metrics = CfnResource(
             self,
@@ -34,3 +44,4 @@ class Metrics(Construct):
             properties=properties,
         )
         self.solution_metrics.override_logical_id("SolutionMetricsAnonymousData")
+        self.solution_metrics.cfn_options.condition = send_anonymous_usage_data

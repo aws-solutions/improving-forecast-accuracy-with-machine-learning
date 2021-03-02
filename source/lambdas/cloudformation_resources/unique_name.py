@@ -10,13 +10,15 @@
 #  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions     #
 #  and limitations under the License.                                                                                 #
 # #####################################################################################################################
-
+import logging
+from os import getenv
 from uuid import uuid4 as uuid
 
 from crhelper import CfnResource
 
 DEFAULT_LENGTH = 32
-helper = CfnResource(log_level="INFO")
+logger = logging.getLogger(__name__)
+helper = CfnResource(log_level=getenv("LOG_LEVEL", "WARNING"))
 
 
 @helper.create
@@ -33,6 +35,7 @@ def generate_name(event, _):
         pass  # use DEFAULT_LENGTH if the length doesn't convert to an int
 
     unique_id = uuid().hex[:length]
+    logger.info(f"generated unique name {unique_id}")
     helper.Data["Id"] = unique_id
     return event.get("PhysicalResourceId", unique_id)
 

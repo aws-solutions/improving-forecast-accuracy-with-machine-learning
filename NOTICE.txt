@@ -1,6 +1,6 @@
 aws-forecast-visualization
 
-Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+Copyright 2020-2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 Licensed under the Apache License Version 2.0 (the "License"). You may not use this file except
 in compliance with the License. A copy of the License is located at http://www.apache.org/licenses/
 or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS,
@@ -18,6 +18,7 @@ black under the Massachusetts Institute of Technology (MIT) license
 click under the BSD 3-Clause license
 coverage under the Apache License Version 2.0
 crhelper under the Apache License Version 2.0
+docker-py under the Apache License Version 2.0
 Jinja2 under the BSD 3-Clause license
 flaky under the Apache License Version 2.0
 matplotlib under the PSF license
@@ -25,13 +26,13 @@ moto under the Apache License Version 2.0
 numpy under the BSD 3-Clause license
 packaging under the Apache License Version 2.0
 pandas under the BSD 3-Clause license
-PyAthena under the Massachusetts Institute of Technology (MIT) license
 pytest under the Massachusetts Institute of Technology (MIT) license
 pytest-cov under the Massachusetts Institute of Technology (MIT) license
 pytest-mock under the Massachusetts Institute of Technology (MIT) license
 pytest-env under the Massachusetts Institute of Technology (MIT) license
 PyYAML under the Massachusetts Institute of Technology (MIT) license
 requests under the Apache License Version 2.0
+requests-mock under the Apache License Version 2.0
 tenacity under the Apache License Version 2.0
 
 The Apache License Version Version 2.0 is included in LICENSE.txt.

@@ -13,6 +13,7 @@
 
 from datetime import datetime, timezone, timedelta
 from operator import itemgetter
+from os import environ
 from typing import Union, Dict
 
 from shared.Dataset.dataset_file import DatasetFile
@@ -37,6 +38,12 @@ class NotMostRecentUpdate(Exception):
     pass
 
 
+class Export:
+    """Used to hold the status of an Amazon Forecast predictor backtest export"""
+
+    status = Status.DOES_NOT_EXIST
+
+
 class Predictor(ForecastClient):
     def __init__(
         self, dataset_file: DatasetFile, dataset_group: DatasetGroup, **predictor_config
@@ -45,9 +52,13 @@ class Predictor(ForecastClient):
         self._dataset_group = dataset_group
         self._max_age_s = predictor_config.pop("MaxAge", MAX_AGE)
 
+        # set any InputDataConfig items
+        self._input_data_config = predictor_config.get("InputDataConfig", {})
+        self._input_data_config["DatasetGroupArn"] = self._dataset_group.arn
+
         self._predictor_params = {
             "PredictorName": "PLACEHOLDER",
-            "InputDataConfig": {"DatasetGroupArn": self._dataset_group.arn},
+            "InputDataConfig": self._input_data_config,
             **predictor_config,
         }
 
@@ -179,13 +190,27 @@ class Predictor(ForecastClient):
         if not past_status:
             return Status.DOES_NOT_EXIST
 
-        # check if a predictor has been successfully created previously
+        # if the predictor is too old (and there is new data to train on), we return Status.DOES_NOT_EXIST to retrain
         too_old = self._status_predictor_too_old(past_status)
         if too_old:
             return Status.DOES_NOT_EXIST
 
         logger.info("status check: predictor status is %s" % past_status.get("Status"))
         return Status[past_status.get("Status")]
+
+    def _create_params(self):
+        """
+        Append tags and EncryptionConfig to the parameters to pass to CreatePredictor
+        :return: the creation parameters
+        """
+        forecast_role = environ.get("FORECAST_ROLE", None)
+        forecast_kms = environ.get("FORECAST_KMS", None)
+        if forecast_role and forecast_kms:
+            self._predictor_params["EncryptionConfig"] = {
+                "KMSKeyArn": forecast_kms,
+                "RoleArn": forecast_role,
+            }
+        return self._predictor_params
 
     def create(self):
         """
@@ -200,18 +225,69 @@ class Predictor(ForecastClient):
         self._predictor_params["Tags"] = self.tags
 
         try:
-            self.cli.create_predictor(**self._predictor_params)
+            self.cli.create_predictor(**self._create_params())
         except self.cli.exceptions.ResourceAlreadyExistsException:
             logger.debug(
                 "Predictor %s is already creating, or already exists" % predictor_name
             )
 
-    def latest_timestamp(self, format="%Y_%m_%d_%H_%M_%S"):
+    def _latest_timestamp(self, format="%Y_%m_%d_%H_%M_%S"):
+        """
+        Predictors latest timestamp will be their creation date.
+        :return:
+        """
         past_predictors = self.history()
-        latest_predictor_modified = max(
-            [predictor.get("LastModificationTime") for predictor in past_predictors]
+        latest_predictor_created = max(
+            [predictor.get("CreationTime") for predictor in past_predictors]
         )
         if format:
-            return latest_predictor_modified.strftime(format)
+            return latest_predictor_created.strftime(format)
         else:
-            return latest_predictor_modified
+            return latest_predictor_created
+
+    def export(self, dataset_file: DatasetFile) -> Export:
+        """
+        Export/ check on a predictor backtest import
+        :param dataset_file: The dataset file last updated that generated this predictor
+        :return: Status
+        """
+        if not self.arn:
+            raise ValueError(
+                "Predictor does not yet exist - cannot perform backtest export."
+            )
+
+        export_name = f"export_{self._dataset_group.dataset_group_name}_{self._latest_timestamp()}"
+
+        past_export = Export()
+        try:
+            past_status = self.cli.describe_predictor_backtest_export_job(
+                PredictorBacktestExportJobArn=self.arn.replace(
+                    ":predictor/", ":predictor-backtest-export-job/"
+                )
+                + f"/{export_name}"
+            )
+            past_export.status = Status[past_status.get("Status")]
+        except self.cli.exceptions.ResourceInUseException as excinfo:
+            logger.debug(
+                "Predictor backtest export %s is updating: %s"
+                % (export_name, str(excinfo))
+            )
+        except self.cli.exceptions.ResourceNotFoundException:
+            logger.info("Creating predictor backtest export %s" % export_name)
+            self.cli.create_predictor_backtest_export_job(
+                PredictorArn=self.arn,
+                PredictorBacktestExportJobName=export_name,
+                Destination={
+                    "S3Config": {
+                        "Path": f"s3://{dataset_file.bucket}/exports/{export_name}",
+                        "RoleArn": environ.get("FORECAST_ROLE"),
+                    }
+                },
+            )
+            past_export.status = Status.CREATE_PENDING
+
+        logger.debug(
+            "Predictor backtest export status for %s is %s"
+            % (export_name, str(past_export.status))
+        )
+        return past_export

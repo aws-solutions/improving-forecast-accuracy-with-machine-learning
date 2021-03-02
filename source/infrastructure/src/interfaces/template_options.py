@@ -11,38 +11,54 @@
 #  and limitations under the License.                                                                                 #
 # #####################################################################################################################
 
+from typing import Union
+
 import jsii
-from aws_cdk.core import ITemplateOptions
+from aws_cdk.core import ITemplateOptions, Stack, NestedStack
 
 
 @jsii.implements(ITemplateOptions)
 class TemplateOptions:
+    """Helper class for setting up template CloudFormation parameter groups, labels and solutions metadata"""
+
     _metadata = {}
+
+    def __init__(
+        self, stack: Union[Stack, NestedStack], id: str, description: str, filename: str
+    ):
+        self.stack = stack
+        self._metadata = {
+            "AWS::CloudFormation::Interface": {
+                "ParameterGroups": [],
+                "ParameterLabels": {},
+            },
+            "aws:solutions:templatename": filename,
+        }
+        self.stack.template_options.description = description
+        self.stack.template_options.metadata = self.metadata
+
+        # if this stack is a nested stack, record its CDK ID in the parent stack's resource to it
+        if getattr(stack, "nested_stack_resource"):
+            stack.nested_stack_resource.add_metadata("aws:solutions:templateid", id)
+            stack.nested_stack_resource.add_metadata(
+                "aws:solutions:templatename", filename
+            )
 
     @property
     def metadata(self) -> dict:
         return self._metadata
 
-    def _prepare_metadata(self):
-        if not self._metadata:
-            self._metadata = {
-                "AWS::CloudFormation::Interface": {
-                    "ParameterGroups": [],
-                    "ParameterLabels": {},
-                }
-            }
-
     def add_parameter_group(self, label, parameters):
-        self._prepare_metadata()
         self._metadata["AWS::CloudFormation::Interface"]["ParameterGroups"].append(
             {
                 "Label": {"default": label},
                 "Parameters": [parameter.node.id for parameter in parameters],
             }
         )
+        self.stack.template_options.metadata = self.metadata
 
     def add_parameter_label(self, parameter, label):
-        self._prepare_metadata()
         self._metadata["AWS::CloudFormation::Interface"]["ParameterLabels"][
             parameter.node.id
         ] = {"default": label}
+        self.stack.template_options.metadata = self.metadata

@@ -15,12 +15,12 @@ import setuptools
 
 setuptools.setup(
     name="infrastructure",
-    version="1.2.0",
+    version="1.3.0",
     description="AWS CDK stack to deploy the Improving Forecast Accuracy with Machine Learning solution.",
     author="AWS Solutions Builders",
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
-    python_requires=">=3.8",
+    python_requires=">=3.7",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

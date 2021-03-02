@@ -22,9 +22,7 @@ from aws_cdk.aws_s3 import (
 )
 from aws_cdk.core import (
     Stack,
-    CfnParameter,
-    App,
-    CfnMapping,
+    Construct,
     CfnCondition,
     Fn,
     Aspects,
@@ -33,178 +31,76 @@ from aws_cdk.core import (
     CfnResource,
     Aws,
     CfnOutput,
+    NestedStack,
 )
 
 from etl.athena import Athena
 from etl.glue import Glue
+from forecast.parameters import Parameters
 from interfaces import ConditionalResources, TemplateOptions
 from sagemaker.notebook import Notebook
 from sns.notifications import Notifications
 from solutions.cfn_nag import CfnNagSuppression, add_cfn_nag_suppressions
+from solutions.mappings import Mappings
 from solutions.metrics import Metrics
 from stepfunctions.lambda_functions import LambdaFunctions
 
 
 class ForecastStack(Stack):
-    def __init__(self, app: App, id: str, **kwargs) -> None:
-        super().__init__(app, id, **kwargs)
+    def __init__(self, scope: Construct, id: str, **kwargs) -> None:
+        super().__init__(scope, id, **kwargs)
 
-        self.template_options.description = "(SO0123) Improving Forecast Accuracy with Machine Learning %%VERSION%% - This solution provides a mechanism to automate Amazon Forecast predictor and forecast generation and visualize it via an Amazon SageMaker Jupyter Notebook"
-
-        # set up the template parameters
-        email = CfnParameter(
+        self.mappings = Mappings(self, "SO0123", quicksight_template_arn=True)
+        self.parameters = Parameters(self)
+        template_options = TemplateOptions(
             self,
-            id="Email",
-            type="String",
-            description="Email to notify with forecast results",
-            default="",
-            max_length=50,
-            allowed_pattern=r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$|^$)",
-            constraint_description="Must be a valid email address or blank",
+            id=id,
+            description="(SO0123) Improving Forecast Accuracy with Machine Learning %%VERSION%% - This solution provides a mechanism to automate Amazon Forecast predictor and forecast generation and visualize it via Amazon Quicksight or an Amazon SageMaker Jupyter Notebook",
+            filename="improving-forecast-accuracy-with-machine-learning.template",
         )
-
-        lambda_log_level = CfnParameter(
-            self,
-            id="LambdaLogLevel",
-            type="String",
-            description="Change the verbosity of the logs output to CloudWatch",
-            default="WARNING",
-            allowed_values=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        )
-
-        notebook_deploy = CfnParameter(
-            self,
-            id="NotebookDeploy",
-            type="String",
-            description="Deploy an Amazon SageMaker Jupyter Notebook instance",
-            default="No",
-            allowed_values=["Yes", "No"],
-        )
-
-        notebook_volume_size = CfnParameter(
-            self,
-            id="NotebookVolumeSize",
-            type="Number",
-            description="Enter the size of the notebook instance EBS volume in GB",
-            default=10,
-            min_value=5,
-            max_value=16384,
-            constraint_description="Must be an integer between 5 (GB) and 16384 (16 TB)",
-        )
-
-        notebook_instance_type = CfnParameter(
-            self,
-            id="NotebookInstanceType",
-            type="String",
-            description="Enter the type of the notebook instance",
-            default="ml.t2.medium",
-            allowed_values=[
-                "ml.t2.medium",
-                "ml.t3.medium",
-                "ml.r5.large",
-                "ml.c5.large",
-            ],
-        )
-
-        quicksight_analysis_owner = CfnParameter(
-            self,
-            id="QuickSightAnalysisOwner",
-            description="With QuickSight Enterprise enabled, provide a QuickSight ADMIN user ARN to automatically create QuickSight analyses",
-            default="",
-            allowed_pattern="(^arn:.*:quicksight:.*:.*:user.*$|^$)",
-        )
-
-        # set up the metadata/ cloudformation interface
-        template_options = TemplateOptions()
-        template_options.add_parameter_group(
-            label="Improving Forecast Accuracy with Machine Learning Configuration",
-            parameters=[email],
-        )
-        template_options.add_parameter_group(
-            label="Visualization Options",
-            parameters=[
-                quicksight_analysis_owner,
-                notebook_deploy,
-                notebook_instance_type,
-                notebook_volume_size,
-            ],
-        )
-        template_options.add_parameter_group(
-            label="Deployment Configuration", parameters=[lambda_log_level]
-        )
-        template_options.add_parameter_label(email, "Email")
-        template_options.add_parameter_label(lambda_log_level, "CloudWatch Log Level")
-        template_options.add_parameter_label(notebook_deploy, "Deploy Jupyter Notebook")
-        template_options.add_parameter_label(
-            notebook_volume_size, "Jupyter Notebook volume size"
-        )
-        template_options.add_parameter_label(
-            notebook_instance_type, "Jupyter Notebook instance type"
-        )
-        template_options.add_parameter_label(
-            quicksight_analysis_owner, "Deploy QuickSight Dashboards"
-        )
-        self.template_options.metadata = template_options.metadata
-
-        solution_mapping = CfnMapping(
-            self,
-            "Solution",
-            mapping={
-                "Data": {
-                    "ID": "SO0123",
-                    "Version": "%%VERSION%%",
-                    "SendAnonymousUsageData": "Yes",
-                }
-            },
-        )
-
-        source_mapping = CfnMapping(
-            self,
-            "SourceCode",
-            mapping={
-                "General": {
-                    "S3Bucket": "%%BUCKET_NAME%%",
-                    "KeyPrefix": "%%SOLUTION_NAME%%/%%VERSION%%",
-                    "QuickSightSourceTemplateArn": "%%QUICKSIGHT_SOURCE%%",
-                }
-            },
-        )
+        self.parameters.add_template_options(template_options)
 
         # conditions
         create_notebook = CfnCondition(
             self,
             "CreateNotebook",
-            expression=Fn.condition_equals(notebook_deploy, "Yes"),
+            expression=Fn.condition_equals(self.parameters.notebook_deploy, "Yes"),
         )
         email_provided = CfnCondition(
             self,
             "EmailProvided",
-            expression=Fn.condition_not(Fn.condition_equals(email, "")),
-        )
-        send_anonymous_usage_data = CfnCondition(
-            self,
-            "SendAnonymousUsageData",
-            expression=Fn.condition_equals(
-                Fn.find_in_map("Solution", "Data", "SendAnonymousUsageData"), "Yes"
-            ),
+            expression=Fn.condition_not(Fn.condition_equals(self.parameters.email, "")),
         )
         create_analysis = CfnCondition(
             self,
             "CreateAnalysis",
             expression=Fn.condition_not(
-                Fn.condition_equals(quicksight_analysis_owner, ""),
+                Fn.condition_equals(self.parameters.quicksight_analysis_owner, ""),
+            ),
+        )
+        forecast_kms = CfnCondition(
+            self,
+            "ForecastSseKmsEnabled",
+            expression=Fn.condition_not(
+                Fn.condition_equals(self.parameters.forecast_kms_key_arn, "")
             ),
         )
 
         # Step function and state machine
-        fns = LambdaFunctions(self, "Functions", log_level=lambda_log_level)
+        fns = LambdaFunctions(
+            self,
+            "Functions",
+            log_level=self.parameters.lambda_log_level,
+            forecast_kms=forecast_kms,
+            forecast_kms_key_arn=self.parameters.forecast_kms_key_arn.value_as_string,
+        )
 
         # SNS
         notifications = Notifications(
             self,
             "NotificationConfiguration",
             lambda_function=fns.functions["SNS"],
-            email=email,
+            email=self.parameters.email,
             email_provided=email_provided,
         )
 
@@ -284,27 +180,61 @@ class ForecastStack(Stack):
         )
 
         # Glue and Athena
-        glue = Glue(self, "GlueResources", unique_name)
+        glue = Glue(
+            self,
+            "GlueResources",
+            unique_name,
+            forecast_bucket=data_bucket,
+            athena_bucket=athena_bucket,
+            glue_jobs_path=Path(__file__).parent.parent.parent.parent.joinpath(
+                "glue", "jobs"
+            ),
+        )
         athena = Athena(self, "AthenaResources", athena_bucket=athena_bucket)
 
         # Configure permissions for functions
         fns.set_s3_notification_permissions(data_bucket_name_resource)
         fns.set_forecast_s3_access_permissions(
+            name="CreateDatasetGroup",
+            function=fns.functions["CreateDatasetGroup"],
+            data_bucket_name_resource=data_bucket_name_resource,
+            read=True,
+            write=True,
+        )
+        fns.set_forecast_s3_access_permissions(
             name="DatasetImport",
             function=fns.functions["CreateDatasetImportJob"],
             data_bucket_name_resource=data_bucket_name_resource,
+            read=True,
+            write=False,
+        )
+        fns.set_forecast_s3_access_permissions(
+            name="CreatePredictor",
+            function=fns.functions["CreatePredictor"],
+            data_bucket_name_resource=data_bucket_name_resource,
+            read=True,
+            write=True,
         )
         fns.set_forecast_s3_access_permissions(
             name="ForecastExport",
-            function=fns.functions["CreateForecast"],
+            function=fns.functions["CreateForecastExport"],
             data_bucket_name_resource=data_bucket_name_resource,
+            read=True,
+            write=True,
+        )
+        fns.set_forecast_s3_access_permissions(
+            name="PredictorBacktestExport",
+            function=fns.functions["CreatePredictorBacktestExport"],
+            data_bucket_name_resource=data_bucket_name_resource,
+            read=True,
+            write=True,
         )
         fns.set_forecast_etl_permissions(
-            function=fns.functions["PrepareForecastExport"],
+            function=fns.functions["CreateQuickSightAnalysis"],
             database=glue.database,
             workgroup=athena.workgroup,
-            quicksight_principal=quicksight_analysis_owner,
-            quicksight_source=source_mapping,
+            quicksight_principal=self.parameters.quicksight_analysis_owner,
+            quicksight_source=self.mappings.source_mapping,
             athena_bucket=athena_bucket,
             data_bucket_name_resource=data_bucket_name_resource,
         )
@@ -322,7 +252,8 @@ class ForecastStack(Stack):
             "CreatePredictor", data_bucket_name_resource=data_bucket_name_resource
         )
         fns.set_forecast_permissions(
-            "PrepareForecastExport", data_bucket_name_resource=data_bucket_name_resource
+            "CreateQuickSightAnalysis",
+            data_bucket_name_resource=data_bucket_name_resource,
         )
 
         # notebook (conditional on 'create_notebook')
@@ -330,9 +261,9 @@ class ForecastStack(Stack):
             self,
             "Notebook",
             buckets=[data_bucket],
-            instance_type=notebook_instance_type.value_as_string,
-            instance_volume_size=notebook_volume_size.value_as_number,
-            notebook_path=Path(__file__).parent.parent.parent.joinpath(
+            instance_type=self.parameters.notebook_instance_type.value_as_string,
+            instance_volume_size=self.parameters.notebook_volume_size.value_as_number,
+            notebook_path=Path(__file__).parent.parent.parent.parent.joinpath(
                 "notebook", "samples", "notebooks"
             ),
             notebook_destination_bucket=data_bucket,
@@ -346,15 +277,17 @@ class ForecastStack(Stack):
             "SolutionMetrics",
             metrics_function=fns.functions["CfnResourceSolutionMetrics"],
             metrics={
-                "Solution": solution_mapping.find_in_map("Data", "ID"),
-                "Version": solution_mapping.find_in_map("Data", "Version"),
+                "Solution": self.mappings.solution_mapping.find_in_map("Data", "ID"),
+                "Version": self.mappings.solution_mapping.find_in_map(
+                    "Data", "Version"
+                ),
                 "Region": Aws.REGION,
                 "NotebookDeployed": Fn.condition_if(
                     create_notebook.node.id, "Yes", "No"
                 ),
                 "NotebookType": Fn.condition_if(
                     create_notebook.node.id,
-                    notebook_instance_type.value_as_string,
+                    self.parameters.notebook_instance_type.value_as_string,
                     Aws.NO_VALUE,
                 ),
                 "QuickSightDeployed": Fn.condition_if(
@@ -362,12 +295,26 @@ class ForecastStack(Stack):
                 ),
             },
         )
-        Aspects.of(metrics).add(ConditionalResources(send_anonymous_usage_data))
 
         # outputs
-        CfnOutput(self, "ForecastBucketName", value=data_bucket.bucket_name)
-        CfnOutput(self, "AthenaBucketName", value=athena_bucket.bucket_name)
-        CfnOutput(self, "StepFunctionsName", value=fns.state_machine.state_machine_name)
+        CfnOutput(
+            self,
+            "ForecastBucketName",
+            value=data_bucket.bucket_name,
+            export_name=f"{Aws.STACK_NAME}-ForecastBucketName",
+        )
+        CfnOutput(
+            self,
+            "AthenaBucketName",
+            value=athena_bucket.bucket_name,
+            export_name=f"{Aws.STACK_NAME}-AthenaBucketName",
+        )
+        CfnOutput(
+            self,
+            "StepFunctionsName",
+            value=fns.state_machine.state_machine_name,
+            export_name=f"{Aws.STACK_NAME}-StepFunctionsName",
+        )
 
     def secure_bucket(self, name, suppressions=None, **kwargs):
         bucket = Bucket(
@@ -376,12 +323,14 @@ class ForecastStack(Stack):
             removal_policy=RemovalPolicy.RETAIN,
             encryption=BucketEncryption.S3_MANAGED,
             block_public_access=BlockPublicAccess.BLOCK_ALL,
-            **kwargs
+            **kwargs,
         )
         bucket.add_to_resource_policy(
             iam.PolicyStatement(
                 sid="HttpsOnly",
-                resources=[bucket.arn_for_objects("*"),],
+                resources=[
+                    bucket.arn_for_objects("*"),
+                ],
                 actions=["*"],
                 effect=iam.Effect.DENY,
                 principals=[iam.AnyPrincipal()],
@@ -389,8 +338,28 @@ class ForecastStack(Stack):
             )
         )
         bucket_cfn = bucket.node.default_child  # type: CfnResource
+        bucket_cfn.add_property_override(
+            "BucketEncryption",
+            {
+                "ServerSideEncryptionConfiguration": [
+                    {
+                        "BucketKeyEnabled": True,
+                        "ServerSideEncryptionByDefault": {
+                            "SSEAlgorithm": "AES256",
+                        },
+                    }
+                ]
+            },
+        )
         bucket_cfn.override_logical_id(name)
         if suppressions:
             add_cfn_nag_suppressions(bucket_cfn, suppressions)
 
         return bucket
+
+
+class NestedForecastStack(ForecastStack, NestedStack):
+    """The nested version of the forecast stack to use in the demo"""
+
+    def __init__(self, scope: Construct, id: str, **kwargs) -> None:
+        super().__init__(scope, id, **kwargs)

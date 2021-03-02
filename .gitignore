@@ -19,10 +19,15 @@ __pycache__/
 
 # Python Virtual Environments
 **/venv*
+**/.venv*
 
 ## Python Testing
 **/.pytest_cache
 **/.coverage
+**/coverage-reports/
+
+# linting, scanning configurations, sonarqube
+.scannerwork/
 
 ### VisualStudioCode ###
 .vscode/*
@@ -35,6 +40,9 @@ __pycache__/
 
 # CDK
 **/cdk.out
+
+# Glue
+.glue/*
 
 # Generated test assets
 source/infrastructure/tests/assets/*
