@@ -19,7 +19,6 @@ click under the BSD 3-Clause license
 coverage under the Apache License Version 2.0
 crhelper under the Apache License Version 2.0
 docker-py under the Apache License Version 2.0
-Jinja2 under the BSD 3-Clause license
 flaky under the Apache License Version 2.0
 matplotlib under the PSF license
 moto under the Apache License Version 2.0

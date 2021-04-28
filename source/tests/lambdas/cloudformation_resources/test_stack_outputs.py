@@ -13,34 +13,57 @@
 
 from os import environ
 
-from shared.logging import get_logger
-from shared.quicksight_custom_resources.quicksight import QuickSight
+import boto3
+import pytest
+from moto import mock_cloudformation
 
-logger = get_logger(__name__)
+from lambdas.cloudformation_resources.stack_outputs import stack_outputs, helper
+
+TEMPLATE = """
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Resources: 
+    CDKMetadata:
+        Type: "AWS::CDK::Metadata"
+        Properties: 
+            Modules: some-list
+
+Outputs: 
+    OutputOne: 
+        Description: This is output number one
+        Value: output_1
+    OutputTwo: 
+        Description: This is output number two 
+        Value: output_2
+"""
 
 
-def createquicksightanalysis(event, context):
-    """
-    Create consolidated export tables for forecast visualization
-    :param event: lambda event
-    :param context: lambda context
-    :return: glue table name
-    """
-    table_name = event.get("glue_table_name")
+@pytest.fixture
+def stack_name():
+    return "StackName"
 
-    workgroup = environ.get("WORKGROUP_NAME")
-    schema = environ.get("SCHEMA_NAME")
-    principal = environ.get("QUICKSIGHT_PRINCIPAL")
-    source_template = environ.get("QUICKSIGHT_SOURCE")
 
-    # attempt to create QuickSight analysis
-    qs = QuickSight(
-        workgroup=workgroup,
-        table_name=table_name,
-        schema=schema,
-        principal=principal,
-        source_template=source_template,
+@pytest.fixture
+def lambda_event(stack_name):
+    event = {"ResourceProperties": {"Stack": stack_name}}
+    yield event
+
+
+@mock_cloudformation
+def test_get_stack_output_not_exists(lambda_event):
+    with pytest.raises(ValueError):
+        stack_outputs(lambda_event, None)
+
+
+@mock_cloudformation
+def test_get_stack_output_exists(lambda_event, stack_name):
+    cli = boto3.client("cloudformation", region_name=environ["AWS_REGION"])
+    cli.create_stack(
+        StackName=stack_name,
+        TemplateBody=TEMPLATE,
     )
-    qs.create_data_source()
-    qs.create_data_set()
-    qs.create_analysis()
+    stack_outputs(lambda_event, None)
+
+    assert helper.Data["OutputOne"] == "output_1"
+    assert helper.Data["OutputTwo"] == "output_2"

@@ -1,14 +1,14 @@
 # #####################################################################################################################
-#  Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.                                            #
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                 #
 #                                                                                                                     #
 #  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance     #
-#  with the License. A copy of the License is located at                                                              #
+#  with the License. You may obtain a copy of the License at                                                          #
 #                                                                                                                     #
-#  http://www.apache.org/licenses/LICENSE-2.0                                                                         #
+#   http://www.apache.org/licenses/LICENSE-2.0                                                                        #
 #                                                                                                                     #
-#  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES  #
-#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions     #
-#  and limitations under the License.                                                                                 #
+#  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed   #
+#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for  #
+#  the specific language governing permissions and limitations under the License.                                     #
 # #####################################################################################################################
 
 
@@ -34,6 +34,8 @@ from demo.policies import DemoPolicies
 from forecast.parameters import Parameters
 from forecast.stack import NestedForecastStack
 from interfaces import TemplateOptions, ConditionalResources
+from interfaces.CfnNagSuppressAll import CfnNagSuppressAll
+from solutions.cfn_nag import CfnNagSuppression
 from solutions.mappings import Mappings
 from solutions.metrics import Metrics
 from stepfunctions.lambda_builder import LambdaBuilder
@@ -45,6 +47,7 @@ TTS_URL_DEFAULT = "s3://amazon-forecast-samples/automation_solution/demo-nyctaxi
 RTS_URL_DEFAULT = "s3://amazon-forecast-samples/automation_solution/demo-nyctaxi/nyctaxi_weather_auto.related.csv"
 MD_URL_DEFAULT = "s3://amazon-forecast-samples/automation_solution/demo-nyctaxi/nyctaxi_weather_auto.metadata.csv"
 FORECAST_STACK_DEFAULT = ""
+CFN_RESOURCE_TYPE_URL_INFO = "Custom::UrlInfo"
 
 
 class DemoStack(Stack):
@@ -126,37 +129,37 @@ class DemoStack(Stack):
         )
 
         # Conditions
-        defaults_provided = CfnCondition(
+        self.defaults_provided = CfnCondition(
             self,
             "ForecastDefaultsProvided",
             expression=Fn.condition_not(Fn.condition_equals(forecast_defaults_url, "")),
         )
 
-        tts_provided = CfnCondition(
+        self.tts_provided = CfnCondition(
             self,
             "TTSProvided",
             expression=Fn.condition_not(Fn.condition_equals(tts_url, "")),
         )
 
-        rts_provided = CfnCondition(
+        self.rts_provided = CfnCondition(
             self,
             "RTSProvided",
             expression=Fn.condition_not(Fn.condition_equals(rts_url, "")),
         )
 
-        md_provided = CfnCondition(
+        self.md_provided = CfnCondition(
             self,
             "MDProvided",
             expression=Fn.condition_not(Fn.condition_equals(md_url, "")),
         )
 
-        stack_provided = CfnCondition(
+        self.stack_provided = CfnCondition(
             self,
             "ForecastStackNameProvided",
             expression=Fn.condition_not(Fn.condition_equals(forecast_stack_name, "")),
         )
 
-        stack_not_provided = CfnCondition(
+        self.stack_not_provided = CfnCondition(
             self,
             "ForecastStackNameNotProvided",
             expression=Fn.condition_equals(forecast_stack_name, ""),
@@ -220,50 +223,50 @@ class DemoStack(Stack):
             self.policies.cloudformation_read(forecast_stack_name.value_as_string)
         )
         Aspects.of(functions["CfnResourceStackOutputs"]).add(
-            ConditionalResources(stack_provided)
+            ConditionalResources(self.stack_provided)
         )
 
-        forecast_defaults_url_info = CfnResource(
+        self.forecast_defaults_url_info = CfnResource(
             self,
             "ForecastDefaultsUrlInfo",
-            type="Custom::UrlInfo",
+            type=CFN_RESOURCE_TYPE_URL_INFO,
             properties={
                 "ServiceToken": functions["CfnResourceUrlHelper"].function_arn,
                 "Url": forecast_defaults_url.value_as_string,
             },
         )
 
-        tts_url_info = CfnResource(
+        self.tts_url_info = CfnResource(
             self,
             "TTSUrlInfo",
-            type="Custom::UrlInfo",
+            type=CFN_RESOURCE_TYPE_URL_INFO,
             properties={
                 "ServiceToken": functions["CfnResourceUrlHelper"].function_arn,
                 "Url": tts_url.value_as_string,
             },
         )
 
-        rts_url_info = CfnResource(
+        self.rts_url_info = CfnResource(
             self,
             "RTSUrlInfo",
-            type="Custom::UrlInfo",
+            type=CFN_RESOURCE_TYPE_URL_INFO,
             properties={
                 "ServiceToken": functions["CfnResourceUrlHelper"].function_arn,
                 "Url": rts_url.value_as_string,
             },
         )
-        Aspects.of(rts_url_info).add(ConditionalResources(rts_provided))
+        Aspects.of(self.rts_url_info).add(ConditionalResources(self.rts_provided))
 
-        md_url_info = CfnResource(
+        self.md_url_info = CfnResource(
             self,
             "MDUrlInfo",
-            type="Custom::UrlInfo",
+            type=CFN_RESOURCE_TYPE_URL_INFO,
             properties={
                 "ServiceToken": functions["CfnResourceUrlHelper"].function_arn,
                 "Url": md_url.value_as_string,
             },
         )
-        Aspects.of(md_url_info).add(ConditionalResources(md_provided))
+        Aspects.of(self.md_url_info).add(ConditionalResources(self.md_provided))
 
         # synthesize the main stack
         forecast_stack_cdk = NestedForecastStack(
@@ -271,7 +274,7 @@ class DemoStack(Stack):
         )
 
         forecast_stack_cdk.nested_stack_resource.cfn_options.condition = (
-            stack_not_provided
+            self.stack_not_provided
         )
         forecast_stack_cdk.nested_stack_resource.apply_removal_policy(
             RemovalPolicy.RETAIN
@@ -292,7 +295,7 @@ class DemoStack(Stack):
                 ).to_string(),
             },
         )
-        Aspects.of(cfn_stack_info).add(ConditionalResources(stack_provided))
+        Aspects.of(cfn_stack_info).add(ConditionalResources(self.stack_provided))
 
         # prepare the nested stack that performs the actual downloads
         downloader = DemoDownloader(
@@ -325,7 +328,7 @@ class DemoStack(Stack):
         )
         downloader.nested_stack_resource.override_logical_id("DemoDownloader")
 
-        metrics = Metrics(
+        self.metrics = Metrics(
             self,
             "SolutionMetrics",
             metrics_function=functions["CfnResourceSolutionMetrics"],
@@ -336,4 +339,20 @@ class DemoStack(Stack):
                 ),
                 "Region": Aws.REGION,
             },
+        )
+
+        # aspects
+        Aspects.of(self).add(
+            CfnNagSuppressAll(
+                suppress=[
+                    CfnNagSuppression(
+                        "W89", "Solution AWS Lambda Functions are not deployed to a VPC"
+                    ),
+                    CfnNagSuppression(
+                        "W92",
+                        "Solution AWS Lambda Functions do not require reserved concurrency",
+                    ),
+                ],
+                resource_type="AWS::Lambda::Function",
+            )
         )

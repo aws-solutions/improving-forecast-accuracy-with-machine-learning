@@ -1,25 +1,25 @@
 # #####################################################################################################################
-#  Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.                                            #
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                 #
 #                                                                                                                     #
 #  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance     #
-#  with the License. A copy of the License is located at                                                              #
+#  with the License. You may obtain a copy of the License at                                                          #
 #                                                                                                                     #
-#  http://www.apache.org/licenses/LICENSE-2.0                                                                         #
+#   http://www.apache.org/licenses/LICENSE-2.0                                                                        #
 #                                                                                                                     #
-#  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES  #
-#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions     #
-#  and limitations under the License.                                                                                 #
+#  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed   #
+#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for  #
+#  the specific language governing permissions and limitations under the License.                                     #
 # #####################################################################################################################
 import json
 import logging
 import os
 import sys
+from distutils.util import strtobool
 from functools import wraps
 from pathlib import Path
 
 import pytest
 from aws_cdk import core
-from distutils.util import strtobool
 
 from interfaces import SolutionStackSubstitions
 
@@ -125,10 +125,10 @@ def cdk(context, **kwargs):
     if build_demo:
         from demo.stack import DemoStack
 
-        parent = DemoStack(app, "forecast-stack-cdk-demo", synthesizer=synthesizer)
+        DemoStack(app, "forecast-stack-cdk-demo", synthesizer=synthesizer)
     else:
         from forecast.stack import ForecastStack
 
-        parent = ForecastStack(app, "forecast-stack-cdk", synthesizer=synthesizer)
+        ForecastStack(app, "forecast-stack-cdk", synthesizer=synthesizer)
 
     return app.synth(force=True)

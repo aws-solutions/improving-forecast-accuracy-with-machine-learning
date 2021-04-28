@@ -1,17 +1,16 @@
 # #####################################################################################################################
-#  Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.                                            #
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                 #
 #                                                                                                                     #
 #  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance     #
-#  with the License. A copy of the License is located at                                                              #
+#  with the License. You may obtain a copy of the License at                                                          #
 #                                                                                                                     #
-#  http://www.apache.org/licenses/LICENSE-2.0                                                                         #
+#   http://www.apache.org/licenses/LICENSE-2.0                                                                        #
 #                                                                                                                     #
-#  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES  #
-#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions     #
-#  and limitations under the License.                                                                                 #
+#  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed   #
+#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for  #
+#  the specific language governing permissions and limitations under the License.                                     #
 # #####################################################################################################################
 
-import json
 import time
 from datetime import datetime
 from functools import lru_cache
@@ -119,31 +118,6 @@ class DatasetFile:
         logger.info(f"signature calculated in {time_end - time_start:0.4f} seconds")
 
         return hexdigest
-
-    @lru_cache()
-    def size(self) -> int:
-        """
-        Get the size of the dataset in lines (using S3 select)
-        :return: the size of the dataset in lines
-        """
-
-        # This query counts lines that are not blank (have at least one item)
-        query = f"select count(*) as lines from s3object s where s._1 != ''"
-
-        select = self.cli.select_object_content(
-            Bucket=self.bucket,
-            Key=self.key,
-            ExpressionType="SQL",
-            Expression=query,
-            InputSerialization={"CSV": {"FileHeaderInfo": "NONE"}},
-            OutputSerialization={"JSON": {}},
-        )
-
-        for event in select["Payload"]:
-            if "Records" in event:
-                records = event["Records"]["Payload"].decode("utf-8")
-
-        return json.loads(records).get("lines")
 
     def __repr__(self):
         return f"DatasetFile(key='{self.key}',bucket='{self.bucket}')"

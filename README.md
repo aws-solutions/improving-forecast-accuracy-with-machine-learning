@@ -12,15 +12,14 @@ focus on the accuracy of their forecasts. Amazon Forecast predictors and forecas
 related timeseries data, and item metadata are refreshed, which allows for A/B testing against different sets of related
 timeseries data and item metadata. 
 
-As predictors are generated, their accuracy is tracked over time in Amazon CloudWatch, which allows users to track
-forecast accuracy and identify drifts over multiple forecasts and parameter-tuning configurations. 
+After forecast exports and Athena tables are created, the solution automatically creates an interactive and
+shareable analysis in Amazon QuickSight with pre-set visuals and configurations to analyze your forecasts. 
 
 To better capture and alert users of data quality issues, a configurable alert function can also be deployed with Amazon
 Simple Notification Service (Amazon SNS). This notifies the user on success and failure of the automated forecasting 
 job, reducing the need for users to monitor their forecast workflow. 
 
-This guide provides infrastructure and configuration information for planning and deploying the solution in the AWS 
-Cloud.
+This guide provides infrastructure and configuration information for planning and deploying the solution in AWS.
 
 
 ## Architecture
@@ -41,6 +40,9 @@ Machine Learning (ML) models in Amazon Forecast.
 the results of the AWS Step Function.
 - An optional Amazon SageMaker Notebook Instance that data scientists and developers can use to prepare and process
 data, and evaluate your Forecast output.
+- An AWS Glue Job that consolidates your input data and forecast data into a consolidated view that can be queried with
+standard SQL queries using Amazon Athena.
+- An Amazon QuickSight analysis is deployed to help visualize forecast output. 
 
 **Note**: From v1.2.0, all AWS CloudFormation template resources are created by the [AWS CDK](https://aws.amazon.com/cdk/) 
 and [AWS Solutions Constructs](https://aws.amazon.com/solutions/constructs/). Stateful CloudFormation template resources 
@@ -82,10 +84,6 @@ solution
 To test the solution, or provide a demo - you can follow the synthetic data generation instructions in
 `source/synthetic/README.md` ([here](source/synthetic/README.md)).
 
-## Known Issues 
-
-- When running the solution in us-east-2, the AWS Glue Job may fail with a `KeyError`. When this occurs, forecasts will
-be generated, but the Amazon Athena/ AWS Glue table will not be generated to consolidate the input and forecast data.  
 
 ***
 

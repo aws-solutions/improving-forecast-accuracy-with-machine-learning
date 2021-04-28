@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2021-04-08
+### Fixed
+- Upgraded Python package versions and removed unused packages
+
 ## [1.3.0] - 2021-03-02
 ### Added
 - The solution now supports the [Amazon Forecast Weather Index](https://aws.amazon.com/blogs/machine-learning/amazon-forecast-weather-index-automatically-include-local-weather-to-increase-your-forecasting-model-accuracy/).
@@ -40,7 +44,7 @@ input time series, input metadata, and forecast export into one location. The na
 the forecast export in the Amazon Forecast console. These tables are partitioned for data frequencies greater than 
 daily using YYYY-MM, and will be output in the Forecast Data bucket under the prefix `exports/<export_name>`
 - After forecast exports and Athena tables are created, the solution now automatically creates an interactive and
-shareable analysis in Amazon QuickSight with pre-set visuals and configurations for to analyze your forecasts. To enable
+shareable analysis in Amazon QuickSight with pre-set visuals and configurations to analyze your forecasts. To enable
 this functionality, provide the QuickSight Analysis Owner ARN parameter in CloudFormation and ensure that QuickSight
 Edition is enabled in your account and region where this solution is deployed.
 ### Fixed

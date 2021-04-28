@@ -1,14 +1,14 @@
 # #####################################################################################################################
-#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.                                            #
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                 #
 #                                                                                                                     #
 #  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance     #
-#  with the License. A copy of the License is located at                                                              #
+#  with the License. You may obtain a copy of the License at                                                          #
 #                                                                                                                     #
-#  http://www.apache.org/licenses/LICENSE-2.0                                                                         #
+#   http://www.apache.org/licenses/LICENSE-2.0                                                                        #
 #                                                                                                                     #
-#  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES  #
-#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions     #
-#  and limitations under the License.                                                                                 #
+#  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed   #
+#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for  #
+#  the specific language governing permissions and limitations under the License.                                     #
 # #####################################################################################################################
 
 from __future__ import annotations
@@ -66,8 +66,8 @@ RELATED_TIME_SERIES = "RELATED_TIME_SERIES"
 ITEM_METADATA = "ITEM_METADATA"
 FORECAST_EXPORT_JOB = "FORECAST_EXPORT_JOB"
 PREDICTOR_BACKTEST_EXPORT_JOB = "PREDICTOR_BACKTEST_EXPORT_JOB"
-SOLUTION_ID = "SOL0123"
-SOLUTION_VERSION = "1.3.0"
+SOLUTION_ID = "SO0123"
+SOLUTION_VERSION = "1.3.1"
 CLIENT_CONFIG = Config(
     retries={"max_attempts": 10, "mode": "standard"},
     user_agent_extra=f"AwsSolution/{SOLUTION_ID}/{SOLUTION_VERSION}",
@@ -136,7 +136,7 @@ class Schema:
         return [attribute.name for attribute in self.attributes]
 
 
-class Forecast:
+class ForecastStatus:
     """Used to cache information about the current state of the Forecast service"""
 
     def __init__(self, name, region, account):
@@ -536,7 +536,7 @@ class Forecast:
         FORECAST_EXPORT_JOB, ITEM_METADATA) into a consistent schema for future consumption by Athena
         :return: DynamicFrame representing the consolidated/ aggregated forecast input / output data
         """
-        output_schema = Forecast.empty()
+        output_schema = ForecastStatus.empty()
         input = self.target_time_series_data
         export = self.forecast_export_job_data
         backtest = self.predictor_backtest_export_job_data
@@ -545,7 +545,7 @@ class Forecast:
         tts_fields = self.target_time_series_schema.fields
         try:
             md_fields = self.item_metadata_schema.fields
-        except AttributeError as exc:
+        except AttributeError:
             md_fields = []
         attrs = input.map_generic_attribute_names(tts_fields, md_fields)
         attrs = export.map_generic_attribute_names(
@@ -573,8 +573,8 @@ class Forecast:
         )
 
         # combine the data with a union
-        aggregate = Forecast.union_dfs(filtered_input, backtest.df.toDF())
-        aggregate = Forecast.union_dfs(aggregate, export.df.toDF())
+        aggregate = ForecastStatus.union_dfs(filtered_input, backtest.df.toDF())
+        aggregate = ForecastStatus.union_dfs(aggregate, export.df.toDF())
 
         # add metadata via a join if metadata is available
         try:
@@ -582,11 +582,11 @@ class Forecast:
             metadata.map_generic_attribute_names(tts_fields, md_fields, attrs)
             metadata_df = metadata.df.toDF()
             aggregate = aggregate.join(metadata_df, ["identifier"], "left")
-        except AttributeError as exc:
-            logger.info("metadata not available to join for")
+        except AttributeError:
+            logger.info(f"metadata not available to join for {self.name}")
 
         # prepare the output column format/ order
-        aggregate = Forecast.union_dfs(output_schema, aggregate)
+        aggregate = ForecastStatus.union_dfs(output_schema, aggregate)
 
         # add the month starting data (this is the partition)
         aggregate = aggregate.withColumn(
@@ -637,11 +637,11 @@ class Forecast:
             return df.select(columns_order_list)
         else:
             columns = []
-            for colName in columns_order_list:
-                if colName not in df_missing_fields:
-                    columns.append(colName)
+            for col_name in columns_order_list:
+                if col_name not in df_missing_fields:
+                    columns.append(col_name)
                 else:
-                    columns.append(F.lit(None).alias(colName))
+                    columns.append(F.lit(None).alias(col_name))
             return df.select(columns)
 
     @staticmethod
@@ -658,8 +658,10 @@ class Forecast:
         left_df, right_df, left_list_miss_cols, right_list_miss_cols
     ):
         """ return union of data frames with ordered columns by left_df. """
-        left_df_all_cols = Forecast.__add_missing_columns(left_df, left_list_miss_cols)
-        right_df_all_cols = Forecast.__order_df_and_add_missing_cols(
+        left_df_all_cols = ForecastStatus.__add_missing_columns(
+            left_df, left_list_miss_cols
+        )
+        right_df_all_cols = ForecastStatus.__order_df_and_add_missing_cols(
             right_df, left_df_all_cols.schema.names, right_list_miss_cols
         )
         return left_df_all_cols.union(right_df_all_cols)
@@ -683,7 +685,7 @@ class Forecast:
             # Diff columns between left_df and right_df
             right_list_miss_cols = list(left_df_col_list - right_df_col_list)
             left_list_miss_cols = list(right_df_col_list - left_df_col_list)
-            return Forecast.__order_and_union_d_fs(
+            return ForecastStatus.__order_and_union_d_fs(
                 left_df, right_df, left_list_miss_cols, right_list_miss_cols
             )
 
@@ -1198,7 +1200,9 @@ class ForecastInputTransformation(ForecastDataTransformation):
         :return: DynamicFrame with identifier renamed
         """
         old_name = self.etl.identifier
-        logger.info("%s renaming target field %s to metric" % (self.etl.name, old_name))
+        logger.info(
+            "%s renaming identifier field %s to identifier" % (self.etl.name, old_name)
+        )
         return self.df.withColumnRenamed(old_name, "identifier")
 
 
@@ -1221,7 +1225,7 @@ if __name__ == "__main__":
     sc = SparkContext.getOrCreate()
     gc = GlueContext(sc, catalog_id=args["account_id"])
 
-    forecast = Forecast(
+    forecast = ForecastStatus(
         args["dataset_group"], region=args["region"], account=args["account_id"]
     )
     aggregated_data = forecast.aggregate_forecast_data

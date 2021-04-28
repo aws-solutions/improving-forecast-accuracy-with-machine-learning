@@ -10,37 +10,32 @@
 #  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for  #
 #  the specific language governing permissions and limitations under the License.                                     #
 # #####################################################################################################################
+from typing import List
 
-from os import environ
+import jsii
+from aws_cdk.core import IAspect, IConstruct
 
-from shared.logging import get_logger
-from shared.quicksight_custom_resources.quicksight import QuickSight
-
-logger = get_logger(__name__)
+from solutions.cfn_nag import CfnNagSuppression, add_cfn_nag_suppressions
 
 
-def createquicksightanalysis(event, context):
-    """
-    Create consolidated export tables for forecast visualization
-    :param event: lambda event
-    :param context: lambda context
-    :return: glue table name
-    """
-    table_name = event.get("glue_table_name")
+@jsii.implements(IAspect)
+class CfnNagSuppressAll:
+    """Suppress certain cfn_nag warnings that can be ignored by this solution"""
 
-    workgroup = environ.get("WORKGROUP_NAME")
-    schema = environ.get("SCHEMA_NAME")
-    principal = environ.get("QUICKSIGHT_PRINCIPAL")
-    source_template = environ.get("QUICKSIGHT_SOURCE")
+    def __init__(self, suppress: List[CfnNagSuppression], resource_type: str):
+        self.suppressions = suppress
+        self.resource_type = resource_type
 
-    # attempt to create QuickSight analysis
-    qs = QuickSight(
-        workgroup=workgroup,
-        table_name=table_name,
-        schema=schema,
-        principal=principal,
-        source_template=source_template,
-    )
-    qs.create_data_source()
-    qs.create_data_set()
-    qs.create_analysis()
+    def visit(self, node: IConstruct):
+        if (
+            "is_cfn_element" in dir(node)
+            and node.is_cfn_element(node)
+            and getattr(node, "cfn_resource_type", None) == self.resource_type
+        ):
+            add_cfn_nag_suppressions(node, self.suppressions)
+
+        elif (
+            "is_cfn_element" in dir(node.node.default_child)
+            and getattr(node.node.default_child, "cfn_resource_type", None) == self.resource_type
+        ):
+            add_cfn_nag_suppressions(node.node.default_child, self.suppressions)

@@ -17,7 +17,6 @@ import os
 import shutil
 import subprocess
 from dataclasses import dataclass, field
-from zipfile import ZipFile
 
 import click
 
@@ -26,7 +25,7 @@ from infrastructure import cdk
 
 class Logger:
     @classmethod
-    def getLogger(self, name):
+    def get_logger(self, name):
         logger = logging.getLogger(name)
         if not len(logger.handlers):
             logger.setLevel(logging.INFO)
@@ -38,7 +37,7 @@ class Logger:
         return logger
 
 
-logger = Logger.getLogger("cdk-helper")
+logger = Logger.get_logger("cdk-helper")
 
 
 class Cleaner:
