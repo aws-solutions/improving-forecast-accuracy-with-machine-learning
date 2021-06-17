@@ -11,25 +11,48 @@
 #  the specific language governing permissions and limitations under the License.                                     #
 # #####################################################################################################################
 
-import setuptools
+import importlib.util
+from pathlib import Path
 
-setuptools.setup(
-    name="infrastructure",
-    version="1.3.2",
-    description="AWS CDK stack to deploy the Improving Forecast Accuracy with Machine Learning solution.",
-    author="AWS Solutions Builders",
-    package_dir={"": "src"},
-    packages=setuptools.find_packages(where="src"),
-    python_requires=">=3.7",
-    classifiers=[
-        "Development Status :: 4 - Beta",
-        "Intended Audience :: Developers",
-        "License :: OSI Approved :: Apache Software License",
-        "Programming Language :: JavaScript",
-        "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.8",
-        "Topic :: Software Development :: Code Generators",
-        "Topic :: Utilities",
-        "Typing :: Typed",
-    ],
+import boto3
+import botocore.exceptions
+import pytest
+from moto import mock_s3, mock_sts
+
+BUILD_S3_CDK_DIST_PATH = str(
+    (Path(__file__).parents[2] / "deployment" / "build-s3-cdk-dist.py").absolute()
 )
+
+
+@pytest.fixture
+def build_tools():
+    spec = importlib.util.spec_from_file_location(
+        "build_s3_cdk_dist", BUILD_S3_CDK_DIST_PATH
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@mock_s3
+@mock_sts
+def test_bucket_check_valid(build_tools):
+    s3 = boto3.client("s3", region_name="eu-central-1")
+    s3.create_bucket(
+        Bucket="MyBucket",
+        CreateBucketConfiguration={"LocationConstraint": "eu-central-1"},
+    )
+
+    packager = build_tools.BaseAssetPackager()
+    packager.s3_asset_path = "s3://MyBucket"
+    assert packager.check_bucket()
+
+
+@mock_s3
+@mock_sts
+def test_bucket_check_invalid(build_tools):
+    packager = build_tools.BaseAssetPackager()
+    packager.s3_asset_path = "s3://MyBucket"
+
+    with pytest.raises(botocore.exceptions.ClientError):
+        assert packager.check_bucket()

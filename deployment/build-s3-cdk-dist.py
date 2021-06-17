@@ -18,6 +18,8 @@ import shutil
 import subprocess
 from dataclasses import dataclass, field
 
+import boto3
+import botocore.exceptions
 import click
 
 from infrastructure import cdk
@@ -158,6 +160,7 @@ class BaseAssetPackager:
         if not self.s3_asset_path:
             raise ValueError("missing s3 asset path for sync")
 
+        self.check_bucket()
         with subprocess.Popen(
             [
                 "aws",
@@ -177,6 +180,27 @@ class BaseAssetPackager:
                 logger.info("s3 sync: %s" % line.strip())
         if p.returncode != 0:
             raise subprocess.CalledProcessError(p.returncode, p.args)
+
+    def check_bucket(self) -> bool:
+        """Checks bucket ownership before sync"""
+        bucket = self.s3_asset_path.split("/")[2]
+        sts = boto3.client("sts")
+        account = sts.get_caller_identity()["Account"]
+
+        s3 = boto3.client("s3")
+        try:
+            s3.head_bucket(Bucket=bucket, ExpectedBucketOwner=account)
+        except botocore.exceptions.ClientError as err:
+            status = err.response["ResponseMetadata"]["HTTPStatusCode"]
+            error = err.response["Error"]["Code"]
+            if status == 404:
+                logging.error("missing bucket: %s" % error)
+            elif status == 403:
+                logging.error("access denied - check bucket ownership: %s" % error)
+            else:
+                logging.exception("unknown error: %s" % error)
+            raise
+        return True
 
 
 class RegionalAssetPackager(BaseAssetPackager):

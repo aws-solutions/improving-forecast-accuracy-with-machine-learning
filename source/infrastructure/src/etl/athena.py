@@ -30,6 +30,9 @@ class Athena(Construct):
                 "RecursiveDeleteOption": True,
                 "WorkGroupConfiguration": {
                     "EnforceWorkGroupConfiguration": True,
+                    "EngineVersion": {
+                        "SelectedEngineVersion": "Athena engine version 2"
+                    },
                     "ResultConfiguration": {
                         "OutputLocation": athena_bucket.s3_url_for_object(
                             "query-results"
