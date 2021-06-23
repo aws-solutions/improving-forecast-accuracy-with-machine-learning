@@ -128,7 +128,6 @@ def cdk(context, **kwargs):
         DemoStack(app, "forecast-stack-cdk-demo", synthesizer=synthesizer)
     else:
         from forecast.stack import ForecastStack
-
         ForecastStack(app, "forecast-stack-cdk", synthesizer=synthesizer)
 
     return app.synth(force=True)

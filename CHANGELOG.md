@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2021-06-21
+### Changed
+- The default notebook instance type is now `ml.t3.medium` for new stacks to improve performance and availability.
+### Fixed
+- Fixed an issue that might cause the stack to fail to deploy. This failure occurred when AWS::S3::Bucket 
+`ForecastBucket` deployed before a required AWS::Lambda::Permission.
+
 ## [1.3.2] - 2021-06-17
 ### Changed
 - Amazon Athena engine version 2 is now the default requested workgroup version.

@@ -195,6 +195,7 @@ class ForecastStack(Stack):
 
         # Configure permissions for functions
         fns.set_s3_notification_permissions(data_bucket_name_resource)
+        data_bucket.node.add_dependency(fns.functions["S3NotificationLambda"].node.find_child("S3NotificationLambdaS3BucketPermission"))
         fns.set_forecast_s3_access_permissions(
             name="CreateDatasetGroup",
             function=fns.functions["CreateDatasetGroup"],

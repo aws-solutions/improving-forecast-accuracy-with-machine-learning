@@ -35,7 +35,7 @@ class Notebook(Construct):
         scope: Construct,
         id: str,
         buckets: List[IBucket] = None,
-        instance_type: str = "ml.t2.medium",
+        instance_type: str = "ml.t3.medium",
         instance_volume_size: int = 10,
         notebook_path: Union[Path, None] = None,
         notebook_destination_bucket: IBucket = None,

@@ -71,7 +71,7 @@ def environment():
             "BUCKET_NAME": "test",
             "SOLUTION_NAME": "Improving Forecast Accuracy With Machine Learning",
             "QUICKSIGHT_SOURCE": "none",
-            "VERSION": "1.3.2",
+            "VERSION": "1.3.3",
         }
     )
 
@@ -92,7 +92,7 @@ def synthesis_cdk(session_mocker):
             "SOLUTION_NAME": "Improving Forecast Accuracy With Machine Learning",
             "QUICKSIGHT_SOURCE": "none",
             "NOTEBOOKS": "none",
-            "VERSION": "1.3.2",
+            "VERSION": "1.3.3",
         },
     )
     synthesizer = SolutionStackSubstitions(qualifier="hnb659fds")
@@ -117,7 +117,7 @@ def synthesis_solutions(session_mocker):
             "SOLUTION_NAME": "Improving Forecast Accuracy With Machine Learning",
             "QUICKSIGHT_SOURCE": "none",
             "NOTEBOOKS": "none",
-            "VERSION": "1.3.2",
+            "VERSION": "1.3.3",
             "SOLUTIONS_ASSETS_REGIONAL": "assets-regional",
             "SOLUTIONS_ASSETS_GLOBAL": "assets-global",
         },

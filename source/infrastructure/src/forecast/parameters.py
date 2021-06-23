@@ -118,7 +118,7 @@ class Parameters:
                 id="NotebookInstanceType",
                 type="String",
                 description="Enter the type of the notebook instance",
-                default="ml.t2.medium",
+                default="ml.t3.medium",
                 allowed_values=[
                     "ml.t2.medium",
                     "ml.t3.medium",
