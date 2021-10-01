@@ -84,6 +84,9 @@ solution
 To test the solution, or provide a demo - you can follow the synthetic data generation instructions in
 `source/synthetic/README.md` ([here](source/synthetic/README.md)).
 
+## Collection of operational metrics
+
+This solution collects anonymous operational metrics to help AWS improve the quality of features of the solution. For more information, including how to disable this capability, please see the [implementation guide](https://docs.aws.amazon.com/solutions/latest/improving-forecast-accuracy-with-machine-learning/operational-metrics.html).
 
 ***
 
