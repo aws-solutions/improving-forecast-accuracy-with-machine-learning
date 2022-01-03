@@ -44,15 +44,19 @@ def notification(event: dict, context):
         state_input["config"] = s3_config.config
     except ConfigNotFound as excinfo:
         logger.warning("The configuration file was not found")
-        state_input["serviceError"] = {
-            "Error": "ConfigNotFound",
-            "Cause": json.dumps({"errorMessage": str(excinfo)}),
+        state_input["error"] = {
+            "serviceError": {
+                "Error": "ConfigNotFound",
+                "Cause": json.dumps({"errorMessage": str(excinfo)}),
+            }
         }
     except ValueError as excinfo:
         logger.warning("There was a problem with the config file: %s" % str(excinfo))
-        state_input["serviceError"] = {
-            "Error": "ValueError",
-            "Cause": json.dumps({"errorMessage": str(excinfo)}),
+        state_input["error"] = {
+            "serviceError": {
+                "Error": "ValueError",
+                "Cause": json.dumps({"errorMessage": str(excinfo)}),
+            }
         }
 
     # validate the config file if it loaded properly
@@ -62,9 +66,11 @@ def notification(event: dict, context):
             for error in errors:
                 logger.warning("config problem: %s" % error)
 
-            state_input["serviceError"] = {
-                "Error": "ConfigError",
-                "Cause": json.dumps({"errorMessage": "\n".join(errors)}),
+            state_input["error"] = {
+                "serviceError": {
+                    "Error": "ConfigError",
+                    "Cause": json.dumps({"errorMessage": "\n".join(errors)}),
+                }
             }
 
     # Start the AWS Step Function automation of Amazon Forecast

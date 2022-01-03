@@ -2,7 +2,7 @@
 omit =
     images/*
     tests/*
-    shared/quicksight_custom_resources/*
+    forecast-shared/shared/quicksight_custom_resources/*
 source =
     shared
     lambdas

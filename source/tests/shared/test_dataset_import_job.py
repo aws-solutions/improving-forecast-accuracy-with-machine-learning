@@ -68,6 +68,8 @@ def test_dataset_import_job_status_lifecycle(configuration_data, forecast_stub, 
     forecast_stub.add_response(
         "list_tags_for_resource", {"Tags": [{"Key": "SolutionETag", "Value": etag}]}
     )
+    forecast_stub.add_response("list_tags_for_resource", {"Tags": []})
+    forecast_stub.add_response("tag_resource", {})
     forecast_stub.add_response(
         "list_dataset_import_jobs",
         {
@@ -99,6 +101,8 @@ def test_dataset_import_job_status_lifecycle(configuration_data, forecast_stub, 
             ]
         },
     )
+    forecast_stub.add_response("list_tags_for_resource", {"Tags": []})
+    forecast_stub.add_response("tag_resource", {})
 
     dataset_import_job.cli = forecast_stub.client
     mocker.patch(

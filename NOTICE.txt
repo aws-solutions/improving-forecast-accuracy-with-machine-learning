@@ -32,6 +32,7 @@ pytest-env under the Massachusetts Institute of Technology (MIT) license
 PyYAML under the Massachusetts Institute of Technology (MIT) license
 requests under the Apache License Version 2.0
 requests-mock under the Apache License Version 2.0
+responses under the Apache License Version 2.0
 tenacity under the Apache License Version 2.0
 
 The Apache License Version Version 2.0 is included in LICENSE.txt.

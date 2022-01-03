@@ -1,0 +1,17 @@
+aws-cdk.core>=1.126.0
+aws-cdk.aws_lambda>=1.126.0
+black
+boto3>=1.17.49
+requests>=2.24.0
+crhelper>=2.0.6
+Click
+moto
+pipenv
+poetry
+pytest
+pytest-cov>=2.11.1
+pytest-mock>=3.5.1
+tox
+tox-pyenv
+-e helpers_cdk
+-e helpers_common

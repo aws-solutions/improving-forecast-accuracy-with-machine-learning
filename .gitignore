@@ -47,3 +47,9 @@ __pycache__/
 # Generated test assets
 source/infrastructure/tests/assets/*
 !source/infrastructure/tests/assets/.keep
+
+# Python build files
+source/cdk_solution_helper_py/helpers_cdk/build/*
+source/cdk_solution_helper_py/helpers_common/build/*
+source/infrastructure/build/*
+source/forecast-shared/build/*

@@ -11,15 +11,29 @@
 #  the specific language governing permissions and limitations under the License.                                     #
 # #####################################################################################################################
 
+import json
+from pathlib import Path
+
 import setuptools
+
+readme_path = Path(__file__).resolve().parent.parent.parent / "README.md"
+with open(readme_path) as fp:
+    long_description = fp.read()
+
+cdk_json_path = Path(__file__).resolve().parent / "cdk.json"
+cdk_json = json.loads(cdk_json_path.read_text())
+VERSION = cdk_json["context"]["SOLUTION_VERSION"]
+
 
 setuptools.setup(
     name="infrastructure",
-    version="1.3.3",
+    version=VERSION,
     description="AWS CDK stack to deploy the Improving Forecast Accuracy with Machine Learning solution.",
     author="AWS Solutions Builders",
-    package_dir={"": "src"},
-    packages=setuptools.find_packages(where="src"),
+    packages=setuptools.find_packages(),
+    install_requires=[
+        "aws-cdk.core>=1.126.0",
+    ],
     python_requires=">=3.7",
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -28,6 +42,7 @@ setuptools.setup(
         "Programming Language :: JavaScript",
         "Programming Language :: Python :: 3 :: Only",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Topic :: Software Development :: Code Generators",
         "Topic :: Utilities",
         "Typing :: Typed",

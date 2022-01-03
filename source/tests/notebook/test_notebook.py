@@ -31,7 +31,7 @@ def default_region():
 @pytest.fixture()
 def lifecycle_config():
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
-    import notebook.lifecycle_config as lifecycle_config
+    import infrastructure.forecast.sagemaker.lifecycle_config as lifecycle_config
 
     yield lifecycle_config
     os.environ.pop("AWS_DEFAULT_REGION", None)
@@ -55,13 +55,13 @@ def s3_valid_config():
         yield client
 
 
-def test_get_tag_present(lifecycle_config, mocker, forecast_stub, caplog):
+def test_get_tag_by_name(lifecycle_config, mocker, forecast_stub, caplog):
     mocker.patch(
-        "notebook.lifecycle_config.open",
+        "infrastructure.forecast.sagemaker.lifecycle_config.open",
         mocker.mock_open(read_data='{"ResourceArn": "arn::mocked"}'),
     )
     mocker.patch(
-        "notebook.lifecycle_config.sagemaker_cli",
+        "infrastructure.forecast.sagemaker.lifecycle_config.sagemaker_cli",
     )
 
     lifecycle_config.sagemaker_cli = forecast_stub.client
@@ -72,17 +72,16 @@ def test_get_tag_present(lifecycle_config, mocker, forecast_stub, caplog):
     with caplog.at_level(logging.INFO):
         assert lifecycle_config.get_tag("tagname") == "tagvalue"
 
-    assert "Notebook instance ARN is arn::mocked" in caplog.text
     assert "Tag tagname value is tagvalue" in caplog.text
 
 
 def test_get_tag_present(lifecycle_config, mocker, forecast_stub):
     mocker.patch(
-        "notebook.lifecycle_config.open",
+        "infrastructure.forecast.sagemaker.lifecycle_config.open",
         mocker.mock_open(read_data='{"ResourceArn": "arn::mocked"}'),
     )
     mocker.patch(
-        "notebook.lifecycle_config.sagemaker_cli",
+        "infrastructure.forecast.sagemaker.lifecycle_config.sagemaker_cli",
     )
 
     lifecycle_config.sagemaker_cli = forecast_stub.client
@@ -95,11 +94,11 @@ def test_get_tag_present(lifecycle_config, mocker, forecast_stub):
 
 def test_get_tag_b64(lifecycle_config, mocker, forecast_stub):
     mocker.patch(
-        "notebook.lifecycle_config.open",
+        "infrastructure.forecast.sagemaker.lifecycle_config.open",
         mocker.mock_open(read_data='{"ResourceArn": "arn::mocked"}'),
     )
     mocker.patch(
-        "notebook.lifecycle_config.sagemaker_cli",
+        "infrastructure.forecast.sagemaker.lifecycle_config.sagemaker_cli",
     )
 
     lifecycle_config.sagemaker_cli = forecast_stub.client
@@ -112,8 +111,11 @@ def test_get_tag_b64(lifecycle_config, mocker, forecast_stub):
 
 def test_set_jupyter_env_from_tag(lifecycle_config, mocker):
     mock_open = mocker.mock_open()
-    mocker.patch("notebook.lifecycle_config.get_tag", return_value="tagvalue")
-    mocker.patch("notebook.lifecycle_config.open", mock_open)
+    mocker.patch(
+        "infrastructure.forecast.sagemaker.lifecycle_config.get_tag",
+        return_value="tagvalue",
+    )
+    mocker.patch("infrastructure.forecast.sagemaker.lifecycle_config.open", mock_open)
 
     assert lifecycle_config.set_jupyter_env_from_tag("tagname") == "tagvalue"
     mock_open().write.assert_called_once_with("export tagname=tagvalue\n")
@@ -121,7 +123,7 @@ def test_set_jupyter_env_from_tag(lifecycle_config, mocker):
 
 def test_clean_env_file(lifecycle_config, mocker):
     mock = mocker.MagicMock()
-    mocker.patch("notebook.lifecycle_config.os.remove", mock)
+    mocker.patch("infrastructure.forecast.sagemaker.lifecycle_config.os.remove", mock)
 
     lifecycle_config.clean_env_file()
 
@@ -131,7 +133,7 @@ def test_clean_env_file(lifecycle_config, mocker):
 def test_clean_env_file_missing(lifecycle_config, mocker):
     mock = mocker.MagicMock()
     mock.side_effect = FileNotFoundError()
-    mocker.patch("notebook.lifecycle_config.os.remove", mock)
+    mocker.patch("infrastructure.forecast.sagemaker.lifecycle_config.os.remove", mock)
 
     lifecycle_config.clean_env_file()
 
@@ -141,7 +143,8 @@ def test_clean_env_file_missing(lifecycle_config, mocker):
 def test_restart_notebook_server(lifecycle_config, mocker, caplog):
     completed_process = subprocess.CompletedProcess(args=[], returncode=0)
     mocker.patch(
-        "notebook.lifecycle_config.subprocess.run", return_value=completed_process
+        "infrastructure.forecast.sagemaker.lifecycle_config.subprocess.run",
+        return_value=completed_process,
     )
 
     with caplog.at_level(logging.INFO):

@@ -44,6 +44,9 @@ data, and evaluate your Forecast output.
 standard SQL queries using Amazon Athena.
 - An Amazon QuickSight analysis is deployed to help visualize forecast output. 
 
+**Note**: Upgrading to 1.4.0 from earlier versions is not supported. Please redeploy the stack and copy your
+your configuration and data to the newly created forecast data bucket. 
+
 **Note**: From v1.2.0, all AWS CloudFormation template resources are created by the [AWS CDK](https://aws.amazon.com/cdk/) 
 and [AWS Solutions Constructs](https://aws.amazon.com/solutions/constructs/). Stateful CloudFormation template resources 
 maintain the same logical ID comparing to v1.2.0, making the solution upgradable in place.
@@ -63,16 +66,16 @@ You can launch this solution with one click from [AWS Solutions Implementations]
 To customize the solution, or to contribute to the solution, follow the steps below:
 
 ## Prerequisites
-The following procedures assumes that all of the OS-level configuration has been completed. They are:
+The following procedures assumes that all the OS-level configuration has been completed. They are:
 
 * [AWS Command Line Interface](https://aws.amazon.com/cli/)
-* Python 3.7 or later
+* Python 3.8 or later
 
 ## 1. Build the solution
 
 Clone this git repository
 
-`git clone https://github.com/awslabs/<repository_name>`
+`git clone https://github.com/aws-solutions/<repository_name>`
 
 ## 2. Build the solution for deployment
 
@@ -90,7 +93,7 @@ This solution collects anonymous operational metrics to help AWS improve the qua
 
 ***
 
-Copyright 2020-2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

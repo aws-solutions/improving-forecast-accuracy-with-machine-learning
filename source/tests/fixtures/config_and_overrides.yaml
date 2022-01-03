@@ -1,4 +1,8 @@
 Default:
+  Tags:
+    - Key: owner
+      Value: owner-default
+
   Predictor:
     MaxAge: 604800  # one week
     PerformAutoML: False
@@ -7,13 +11,33 @@ Default:
     ForecastHorizon: 72
     FeaturizationConfig:
       ForecastFrequency: D
+    Tags:
+      - Key: solution_predictor
+        Value: predictor
+        State: Present
+      - Key: solution_predictor_absent
+        State: Absent
+
   Forecast:
     ForecastTypes:
       - "0.10"
       - "0.50"
       - "0.90"
+    Tags:
+      - Key: solution_forecast
+        Value: forecast
+        State: Present
+      - Key: solution_forecast_absent
+        State: Absent
+
   DatasetGroup:
     Domain: RETAIL
+    Tags:
+      - Key: solution_dsg
+        Value: dsg
+      - Key: solution_dsg_absent
+        State: Absent
+
   Datasets:
     - Domain: RETAIL
       DatasetType: TARGET_TIME_SERIES
@@ -290,6 +314,9 @@ __Testing__:
     DataFrequency: *Daily
     TimestampFormat: *YMD
     Schema: *RetailTargetTimeSeriesSchema
+    Tags:
+      - Key: type
+        Value: target
 
   RetailRelatedTimeSeries: &RetailRelatedTimeSeries
     Domain: *Retail
@@ -297,12 +324,18 @@ __Testing__:
     DataFrequency: *Daily
     TimestampFormat: *YMD
     Schema: *RetailRelatedTimeSeriesSchema
+    Tags:
+      - Key: type
+        Value: related
 
   RetailItemMetadata: &RetailMetadata
     Domain: *Retail
     DatasetType: *ItemMetadata
     DataFrequency: *Daily
     Schema: *RetailItemMetadataSchema
+    Tags:
+      - Key: type
+        Value: metadata
 
 
 RetailDemandTRM:
@@ -407,8 +440,17 @@ DatasetsFromRetailDemandTRMProphet:
       - "0.99"
 
 RetailDemandTRMProphet:
+  Tags:
+    - Key: owner
+      Value: finance
+
   DatasetGroup:
     Domain: *Retail
+    Tags:
+      - Key: contact
+        Value: username
+      - Key: owner
+        Value: marketing
 
   Datasets:
     - *RetailMetadata

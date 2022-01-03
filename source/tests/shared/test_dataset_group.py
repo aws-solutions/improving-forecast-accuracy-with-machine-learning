@@ -58,6 +58,7 @@ def mock_forecast_dsg_exists(mocker):
         "CreationTime": datetime(2015, 1, 1),
         "LastModificationTime": datetime(2015, 1, 1),
     }
+    mock_forecast_cli.list_tags_for_resource.return_value = {"Tags": []}
     return mock_forecast_cli
 
 

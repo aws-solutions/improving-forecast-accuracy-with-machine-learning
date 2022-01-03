@@ -85,8 +85,16 @@ def test_predictor_arn(forecast_stub, configuration_data):
         "list_predictors",
         {
             "Predictors": [
-                {"CreationTime": datetime(2015, 1, 1), "PredictorArn": "arn:2015-1-1"},
-                {"CreationTime": datetime(2017, 1, 1), "PredictorArn": "arn:2017-1-1"},
+                {
+                    "CreationTime": datetime(2015, 1, 1),
+                    "PredictorArn": "arn:2015-1-1",
+                    "IsAutoPredictor": False,
+                },
+                {
+                    "CreationTime": datetime(2017, 1, 1),
+                    "PredictorArn": "arn:2017-1-1",
+                    "IsAutoPredictor": False,
+                },
             ]
         },
     )
@@ -111,11 +119,13 @@ def test_predictor_history(forecast_stub, configuration_data):
                     "CreationTime": datetime(2015, 1, 1),
                     "PredictorArn": "arn:2015-1-1",
                     "Status": "ACTIVE",
+                    "IsAutoPredictor": False,
                 },
                 {
                     "CreationTime": datetime(2017, 1, 1),
                     "PredictorArn": "arn:2017-1-1",
                     "Status": "CREATE_IN_PROGRESS",
+                    "IsAutoPredictor": False,
                 },
             ]
         },
@@ -189,8 +199,9 @@ def test_predictor_not_most_recent_status(mocked_predictor, mocker):
     mocked_predictor._status_most_recent_update = mocker.MagicMock(return_value=True)
     mocked_predictor._dataset_group.ready = mocker.MagicMock(return_value=True)
     mocked_predictor._status_last_predictor = mocker.MagicMock(
-        return_value={"Status": "ACTIVE"}
+        return_value={"Status": "ACTIVE", "PredictorArn": "arn:some"}
     )
+    mocked_predictor.cli = mocker.MagicMock()
     mocked_predictor._status_predictor_too_old = mocker.MagicMock(return_value=False)
 
     assert mocked_predictor.status == Status.ACTIVE

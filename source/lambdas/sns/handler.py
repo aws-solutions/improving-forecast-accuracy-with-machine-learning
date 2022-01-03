@@ -13,12 +13,14 @@
 
 import json
 import os
+from typing import Dict, Any
 
 from shared.Dataset.dataset_file import DatasetFile
 from shared.helpers import get_sns_client
 from shared.logging import get_logger
 
 logger = get_logger(__name__)
+UNKNOWN_SOURCE = "UNKNOWN"
 
 
 def topic_arn():
@@ -29,58 +31,88 @@ def topic_arn():
     return os.environ["SNS_TOPIC_ARN"]
 
 
-def prepare_forecast_ready_message(event: dict):
+def solution_name() -> str:
     """
-    Prepare a message to notify users that forecasts are ready.
-    :param file: the DatasetFile that was updated to trigger this message
-    :return: message or none
+    Get the Solution Name from environment variable
+    :return: the solution name
     """
-    dataset_group = event.get("dataset_group_name")
-
-    message = f"Forecast for {dataset_group} is ready!"
-    return message
+    return os.environ["SOLUTION_NAME"]
 
 
-def build_message(event):
-    """
-    Build a message for SNS to publish
-    :param event: the lambda event containing the message
-    :return: the message to publish
-    """
-    message = ""
-    error = None
-    file = DatasetFile(event.get("dataset_file"), event.get("bucket"))
-    forecast_for = event.get("dataset_group_name", file.prefix)
+class MessageBuilder:
+    """Builds error messages from AWS Step Functions Output"""
 
-    if "statesError" in event.keys():
-        logger.info("State error message encountered")
-        message += f"There was an error running the forecast for {forecast_for}\n\n"
-        error = event.get("statesError")
-    if "serviceError" in event.keys():
-        logger.info("Service error message encountered")
-        message += (
-            f"There was a service error running the forecast for {forecast_for}\n\n"
-        )
-        error = event.get("serviceError")
+    def __init__(self, event: Dict, context: Any):
+        self.file = DatasetFile(event.get("dataset_file"), event.get("bucket"))
+        self.dataset_group = event.get("dataset_group_name", self.file.prefix)
 
-    if error:
-        error_type = error.get("Error", "Unknown")
-        error_cause = json.loads(error.get("Cause", "{}"))
-        error_message = error_cause.get("errorMessage")
-        stack_trace = error_cause.get("stackTrace")
+        self.error = event.get("error", {})
+        self.states_error = self.error.get("statesError", None)
+        self.service_error = self.error.get("serviceError", None)
+        self.region = context.invoked_function_arn.split(":")[3]
+        self.partition = context.invoked_function_arn.split(":")[1]
+        self.account = context.invoked_function_arn.split(":")[4]
 
-        message += f"Message: {error_message}\n\n"
-        if error_type == "DatasetsImporting":
-            message = f"Update for forecast {forecast_for}\n\n"
-            message += error_message
+        if self.error:
+            self.message = self._build_error_message()
         else:
-            message += f"Details: (caught {error_type})\n\n"
-            if stack_trace:
-                message += f"\n".join(stack_trace)
-    else:
-        message = prepare_forecast_ready_message(event)
+            self.message = self._build_success_message()
 
-    return message
+        self.default = self._build_default_message()
+        self.sms = self._build_sms_message()
+        self.json = self._build_json_message()
+
+    def _build_default_message(self) -> str:
+        return f"Forecast for {self.dataset_group} completed {'with errors' if self.error else 'successfully'}"
+
+    def _build_sms_message(self) -> str:
+        return self._build_default_message()
+
+    def _build_error_message(self) -> str:
+        """
+        Build the error message
+        :return: the error message
+        """
+        if self.states_error:
+            cause = json.loads(self.states_error.get("Cause", "{}"))
+        elif self.service_error:
+            cause = json.loads(self.service_error.get("Cause", "{}"))
+        else:
+            try:
+                cause = json.loads(self.error.get("Cause"))
+            except json.JSONDecodeError:
+                cause = {"errorMessage": self.error.get("Cause")}
+
+        error_detail = cause.get(
+            "errorMessage", cause.get("ErrorMessage", UNKNOWN_SOURCE)
+        )
+
+        message = f"There was an error running the forecast job for dataset group {self.dataset_group}\n\n"
+        message += f"Message: {error_detail}"
+        return message
+
+    def _build_success_message(self) -> str:
+        """
+        Build the success message
+        :return: the success message
+        """
+        console_link = f"https://console.aws.amazon.com/forecast/home?region={self.region}#datasetGroups/arn:{self.partition}:forecast:{self.region}:{self.account}:dataset-group${self.dataset_group}/dashboard"
+
+        message = (
+            f"The forecast job for dataset group {self.dataset_group} is complete\n\n"
+        )
+        message += f"Link: {console_link}"
+        return message
+
+    def _build_json_message(self) -> str:
+        return json.dumps(
+            {
+                "datasetGroup": self.dataset_group,
+                "status": "UPDATE FAILED" if self.error else "UPDATE COMPLETE",
+                "summary": self._build_default_message(),
+                "description": self.message,
+            }
+        )
 
 
 def sns(event, context):
@@ -90,11 +122,22 @@ def sns(event, context):
     :param context: Lambda context
     :return: None
     """
-    cli = get_sns_client()
+    sns = get_sns_client()
+    message_builder = MessageBuilder(event, context)
+    subject = f"{solution_name()} Notifications"
 
-    message = build_message(event)
-    if message:
-        logger.info("Publishing message for event: %s" % event)
-        cli.publish(TopicArn=topic_arn(), Message=message)
-    else:
-        logger.info("No message to publish for event: %s" % event)
+    logger.info(f"publishing message for event {event}")
+    sns.publish(
+        TopicArn=topic_arn(),
+        Message=json.dumps(
+            {
+                "default": message_builder.default,
+                "sms": message_builder.sms,
+                "email": message_builder.message,
+                "email-json": message_builder.json,
+                "sqs": message_builder.json,
+            }
+        ),
+        MessageStructure="json",
+        Subject=subject,
+    )
