@@ -232,8 +232,18 @@ class ForecastStatus:
         """
         :return: The cleaned and binned target time series data as an ETL object
         """
-        dimensions = self.predictor.FeaturizationConfig.get("ForecastDimensions", [])
-        frequency = self.predictor.FeaturizationConfig["ForecastFrequency"]
+        if hasattr(self.predictor, "FeaturizationConfig"):
+            dimensions = self.predictor.FeaturizationConfig.get(
+                "ForecastDimensions", []
+            )
+            frequency = self.predictor.FeaturizationConfig["ForecastFrequency"]
+        else:
+            frequency = self.predictor.ForecastFrequency
+            if hasattr(self.predictor, "ForecastDimensions"):
+                dimensions = self.predictor.ForecastDimensions
+            else:
+                dimensions = []
+
         etl = ETL(
             name=TARGET_TIME_SERIES,
             schema=self.target_time_series_schema,
@@ -396,11 +406,14 @@ class ForecastStatus:
         for page in paginator:
             matches.extend(page["Predictors"])
 
-        predictor = self.cli.describe_predictor(
-            PredictorArn=next(
-                iter((sorted(matches, key=lambda k: k["CreationTime"], reverse=True)))
-            )["PredictorArn"]
-        )
+        predictor_arn = next(
+            iter((sorted(matches, key=lambda k: k["CreationTime"], reverse=True)))
+        )["PredictorArn"]
+
+        try:
+            predictor = self.cli.describe_predictor(PredictorArn=predictor_arn)
+        except self.cli.exceptions.InvalidInputException:
+            predictor = self.cli.describe_auto_predictor(PredictorArn=predictor_arn)
         return namedtuple("Predictor", predictor)(**predictor)
 
     @property
@@ -632,7 +645,7 @@ class ForecastStatus:
     # thanks to https://stackoverflow.com/questions/39758045/how-to-perform-union-on-two-dataframes-with-different-amounts-of-columns-in-spar
     @staticmethod
     def __order_df_and_add_missing_cols(df, columns_order_list, df_missing_fields):
-        """ return ordered dataFrame by the columns order list with null in missing columns """
+        """return ordered dataFrame by the columns order list with null in missing columns"""
         if not df_missing_fields:  # no missing fields for the df
             return df.select(columns_order_list)
         else:
@@ -646,7 +659,7 @@ class ForecastStatus:
 
     @staticmethod
     def __add_missing_columns(df, missing_column_names):
-        """ Add missing columns as null in the end of the columns list """
+        """Add missing columns as null in the end of the columns list"""
         list_missing_columns = []
         for col in missing_column_names:
             list_missing_columns.append(F.lit(None).alias(col))
@@ -657,7 +670,7 @@ class ForecastStatus:
     def __order_and_union_d_fs(
         left_df, right_df, left_list_miss_cols, right_list_miss_cols
     ):
-        """ return union of data frames with ordered columns by left_df. """
+        """return union of data frames with ordered columns by left_df."""
         left_df_all_cols = ForecastStatus.__add_missing_columns(
             left_df, left_list_miss_cols
         )
@@ -993,7 +1006,10 @@ class ForecastPredictorBacktestExportTransformation(ForecastDataTransformation):
         Map all fields to those supported in consolidating
         :return: The DynamicFame
         """
-        logger.info("%s applying schema mappings" % self.etl.name)
+        logger.info(
+            "%s applying schema mappings"  # NOSONAR (python:S1192) - string for clarity
+            % self.etl.name
+        )
 
         fields = list(self.df.schema().field_map.keys())
         mappings = list()
@@ -1040,7 +1056,10 @@ class ForecastExportTransformation(ForecastDataTransformation):
         Map all fields to those supported in consolidating
         :return: The DynamicFame
         """
-        logger.info("%s applying schema mappings" % self.etl.name)
+        logger.info(
+            "%s applying schema mappings"  # NOSONAR (python:S1192) - string for clarity
+            % self.etl.name
+        )
 
         fields = list(self.df.schema().field_map.keys())
         mappings = list()
@@ -1136,7 +1155,10 @@ class ForecastInputTransformation(ForecastDataTransformation):
         """
         :return: DynamicFrame mapped to the schema data types
         """
-        logger.info("%s applying schema mappings" % self.etl.name)
+        logger.info(
+            "%s applying schema mappings"  # NOSONAR (python:S1192) - string for clarity
+            % self.etl.name
+        )
         return ApplyMapping.apply(
             frame=self.df,
             mappings=self.etl.schema.mappings(self.etl.df),

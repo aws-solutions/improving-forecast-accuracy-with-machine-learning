@@ -100,5 +100,22 @@ def test_s3_event_handler_id(event_no_key):
     assert s3_handler.bucket == "test-bucket"
 
     id_matcher = re.compile(f"test-key_target_time_series_[0-9a-f]+")
-    id = s3_handler.event_id
-    assert id_matcher.match(id)
+    id_match = s3_handler.event_id
+    assert id_matcher.match(id_match)
+
+
+@pytest.mark.parametrize(
+    "url_encoded,key",
+    [
+        ("test+key.csv", "test key.csv"),
+        ("test-key.csv", "test-key.csv"),
+        ("test%F0%9F%98%81key.csv", "test😁key.csv"),
+    ],
+)
+def test_s3_event_handler_unquote_plus(event_no_key, url_encoded, key):
+    event_no_key["Records"][0]["s3"]["object"] = {}
+    event_no_key["Records"][0]["s3"]["object"]["key"] = url_encoded
+    s3_handler = Event(event_no_key)
+
+    assert s3_handler.bucket == "test-bucket"
+    assert s3_handler.key == key

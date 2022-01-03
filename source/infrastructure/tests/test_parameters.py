@@ -26,9 +26,9 @@ from aws_cdk.aws_lambda import (
     LayerVersion,
 )
 from aws_cdk.core import App
+from interfaces import SolutionStackSubstitions
 
 from forecast.stack import ForecastStack
-from interfaces import SolutionStackSubstitions
 
 
 def mock_lambda_init(

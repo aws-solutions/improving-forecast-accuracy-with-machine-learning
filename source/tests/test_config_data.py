@@ -24,6 +24,7 @@ from moto import mock_sts
 from shared.Dataset.dataset_domain import DatasetDomain
 from shared.Dataset.dataset_file import DatasetFile
 from shared.Dataset.dataset_type import DatasetType
+from shared.Tags.tags import _tags_as_dict
 from shared.config import Config, ConfigNotFound
 from shared.status import Status
 
@@ -392,3 +393,36 @@ def test_config_predictor_inputdataconfig(configuration_data):
         ]["Name"]
         == "holiday"
     )
+
+
+@mock_sts
+def test_config_tags(configuration_data):
+    config = Config()
+    config.config = configuration_data
+
+    dataset_file = DatasetFile("RetailDemandTRMProphet", "some_bucket")
+
+    tags = config.config_tags(dataset_file, "DatasetGroup")
+    resource_tags = _tags_as_dict(tags.resource_tags)
+    global_tags = _tags_as_dict(tags.global_tags)
+
+    assert resource_tags["contact"] == "username"
+    assert resource_tags["owner"] == "marketing"
+    assert global_tags["owner"] == "finance"
+    assert "owner-default" not in global_tags.values()
+
+
+@mock_sts
+def test_config_tags_default(configuration_data):
+    config = Config()
+    config.config = configuration_data
+
+    dataset_file = DatasetFile("DatasetsFromRetailDemandTRMProphet", "some_bucket")
+
+    tags = config.config_tags(dataset_file, "DatasetGroup")
+    resource_tags = _tags_as_dict(tags.resource_tags)
+    global_tags = _tags_as_dict(tags.global_tags)
+
+    assert resource_tags["solution_dsg"] == "dsg"
+    assert resource_tags["solution_dsg_absent"] == ""
+    assert global_tags["owner"] == "owner-default"

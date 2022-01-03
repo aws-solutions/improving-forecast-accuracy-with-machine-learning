@@ -132,6 +132,9 @@ def test_dataset_create_noop_errors(configuration_data, forecast_stub):
         "create_dataset", {"DatasetArn": dataset.arn}, create_params
     )
 
+    forecast_stub.add_response("list_tags_for_resource", {"Tags": []})
+    forecast_stub.add_response("tag_resource", {})
+
     forecast_stub.add_response(
         "describe_dataset",
         params,
@@ -166,6 +169,8 @@ def test_dataset_create(configuration_data, forecast_stub):
 
     forecast_stub.add_client_error("describe_dataset", "ResourceNotFoundException")
     forecast_stub.add_response("create_dataset", {"DatasetArn": "arn:"})
+    forecast_stub.add_response("list_tags_for_resource", {"Tags": []})
+    forecast_stub.add_response("tag_resource", {})
 
     # should not call anything
     dataset.cli = forecast_stub.client

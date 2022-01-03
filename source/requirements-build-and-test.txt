@@ -16,14 +16,18 @@ pytest-env
 pytest-mock==3.2.0
 PyYAML==5.4.1
 requests-mock==1.8.0
+responses==0.14.0
 tenacity==6.2.0
-aws_cdk.core==1.75.0
-aws_cdk.aws_iam==1.75.0
-aws_cdk.aws_lambda==1.75.0
-aws_cdk.aws_s3==1.75.0
-aws_cdk.aws_s3_deployment==1.75.0
-aws_cdk.aws_sns==1.75.0
-aws_cdk.aws_stepfunctions==1.75.0
-aws_cdk.aws_stepfunctions_tasks==1.75.0
-aws_solutions_constructs.aws_lambda_sns==1.75.0
+aws_cdk.core==1.126.0
+aws_cdk.aws_iam==1.126.0
+aws_cdk.aws_lambda==1.126.0
+aws_cdk.aws_s3==1.126.0
+aws_cdk.aws_s3_deployment==1.126.0
+aws_cdk.aws_sns==1.126.0
+aws_cdk.aws_stepfunctions==1.126.0
+aws_cdk.aws_stepfunctions_tasks==1.126.0
+aws_solutions_constructs.aws_lambda_sns==1.126.0
+-e cdk_solution_helper_py/helpers_cdk
+-e cdk_solution_helper_py/helpers_common
 -e infrastructure
+-e forecast-shared

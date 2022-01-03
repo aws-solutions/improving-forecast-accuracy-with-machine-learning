@@ -31,8 +31,9 @@ def handler(event, context):
     config = Config.from_sfn(event)
     dataset_file = DatasetFile(event.get("dataset_file"), event.get("bucket"))
     dataset_group_name = event.get("dataset_group_name")
+    predictor_arn = event.get("PredictorArn")
 
-    forecast = config.forecast(dataset_file, dataset_group_name)
+    forecast = config.forecast(dataset_file, dataset_group_name, predictor_arn)
 
     if forecast.status == Status.DOES_NOT_EXIST:
         # TODO: publish predictor stats to CloudWatch prior to create

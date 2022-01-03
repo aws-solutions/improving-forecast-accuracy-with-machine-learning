@@ -77,7 +77,7 @@ def test_config_not_found(s3_event, mocker):
     # ensure it was handled correctly
     args, kwargs = client_mock().start_execution.call_args
     assert (
-        json.loads(kwargs.get("input")).get("serviceError").get("Error")
+        json.loads(kwargs.get("input")).get("error").get("serviceError").get("Error")
         == "ConfigNotFound"
     )
 
@@ -96,7 +96,8 @@ def test_config_problem(s3_event, mocker):
     # ensure it was handled correctly
     args, kwargs = client_mock().start_execution.call_args
     assert (
-        json.loads(kwargs.get("input")).get("serviceError").get("Error") == "ValueError"
+        json.loads(kwargs.get("input")).get("error").get("serviceError").get("Error")
+        == "ValueError"
     )
 
 
@@ -118,6 +119,21 @@ def test_config_file_problem(s3_event, mocker, caplog):
 
     args, kwargs = client_mock().start_execution.call_args
     assert (
-        json.loads(kwargs.get("input")).get("serviceError").get("Error")
+        json.loads(kwargs.get("input")).get("error").get("serviceError").get("Error")
         == "ConfigError"
     )
+
+
+def test_config_file_valid(s3_event, mocker, configuration_data):
+    config = Config()
+    config.config = configuration_data
+
+    # simulate valid config
+    config_mock = mocker.MagicMock()
+    config_mock.from_s3.return_value = config
+    mocker.patch("lambdas.notification.handler.Config", config_mock)
+
+    client_mock = mocker.MagicMock()
+    mocker.patch("lambdas.notification.handler.get_sfn_client", client_mock)
+
+    handler.notification(s3_event, None)

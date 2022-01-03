@@ -4,7 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.3] - 2021-06-21
+## [1.4.0] - 2021-12-22
+### Added
+- AutoPredictor support has been added.
+- Resources can now be tagged using arbitrary, user-provided tags.
+### Changed
+- The notebook instance now uses the platform `notebook-al2-v1`. 
+- Upgrading from earlier versions of the stack is not supported. Please redeploy the stack and copy your configuration
+and data to the newly created forecast data bucket. 
+
+
+## [1.3.3] - 2021-06-23
 ### Changed
 - The default notebook instance type is now `ml.t3.medium` for new stacks to improve performance and availability.
 ### Fixed

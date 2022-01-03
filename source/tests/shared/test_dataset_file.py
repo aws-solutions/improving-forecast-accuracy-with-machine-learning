@@ -133,6 +133,12 @@ def test_dataset_file_from_s3_path(path):
     assert dsf.s3_prefix == "s3://some_bucket/"
 
 
+def test_dataset_file_from_s3_path():
+    dsf = DatasetFile.from_s3_path(s3_path="s3://bucket/a key/with some spaces .txt")
+    assert dsf.bucket == "bucket"
+    assert dsf.key == "a key/with some spaces .txt"
+
+
 def test_s3_file_hash(dataset_target, bucket, dataset_file):
     # create some random data to be checksummed
     MB = 1024 * 1024

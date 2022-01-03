@@ -390,7 +390,7 @@ class TimeSeriesModel:
 
         return rate
 
-    def calculate_dependencies(self):
+    def calculate_dependencies(self):  # NOSONAR - higher cognitive complexity allowed
         """
         A naive method of introducing dependencies that allows for interrelated dependencies.
         :return: None
@@ -581,7 +581,9 @@ def get_parameter(dictionary, name, default=None):
     "--plot", is_flag=True, help="set this flag to output plots of each model"
 )
 @click.argument("input", default="config.yaml", type=click.File("rb"))
-def create(start: datetime, length: int, plot: bool, input: click.File):
+def create(
+    start: datetime, length: int, plot: bool, input: click.File
+):  # NOSONAR - higher cognitive complexity allowed
     """Create synthetic data for the items defined in INPUT (default: `config.yaml`)"""
 
     # load the file
@@ -647,13 +649,13 @@ def create(start: datetime, length: int, plot: bool, input: click.File):
         for metadata_item in metadata:
             name = get_parameter(metadata_item, "name")
             value = get_parameter(metadata_item, "value")
-            min = get_parameter(metadata_item, "min", 1.0)
-            max = get_parameter(metadata_item, "max", 1.0)
+            _min = get_parameter(metadata_item, "min", 1.0)
+            _max = get_parameter(metadata_item, "max", 1.0)
 
             logger.info(
-                f"a adding metadata {name}: {value} (min: {min}, max: {max}) to {model.name}"
+                f"a adding metadata {name}: {value} (min: {_min}, max: {_max}) to {model.name}"
             )
-            model.add_metadata(name, value, min, max)
+            model.add_metadata(name, value, _min, _max)
 
         models.append(model)
 
