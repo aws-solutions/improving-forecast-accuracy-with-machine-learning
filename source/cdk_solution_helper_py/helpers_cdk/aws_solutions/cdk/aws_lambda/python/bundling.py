@@ -165,8 +165,6 @@ class SolutionsPythonBundling:
             str(requirements_build_path),
             "-r",
             str(Path(output_dir) / REQUIREMENTS_TXT_FILE),
-            "--use-feature=in-tree-build",
-            "--no-cache-dir",
         ]
         self._invoke_local_command("pip", command, cwd=self.to_bundle)
 
