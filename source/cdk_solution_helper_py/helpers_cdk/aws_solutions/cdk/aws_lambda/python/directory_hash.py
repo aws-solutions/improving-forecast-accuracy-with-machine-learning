@@ -18,12 +18,12 @@ from pathlib import Path
 
 class DirectoryHash:
     # fmt: off
-    _hash = hashlib.sha1()  # NOSONAR - safe to hash; side-effect of collision is to create new bundle
+    _hash = hashlib.sha1() # nosec  # NOSONAR - safe to hash; side-effect of collision is to create new bundle
     # fmt: on
 
     @classmethod
     def hash(cls, *directories: Path):
-        DirectoryHash._hash = hashlib.sha1()  # NOSONAR - safe to hash; see above
+        DirectoryHash._hash = hashlib.sha1() # nosec  # NOSONAR - safe to hash; see above
         if isinstance(directories, Path):
             directories = [directories]
         for directory in sorted(directories):

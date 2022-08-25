@@ -34,7 +34,7 @@ class StackId:
 
     @property
     def hash(self):
-        digest = md5()  # NOSONAR - safe to hash, not for cryptographic purposes
+        digest = md5() # nosec # NOSONAR - safe to hash, not for cryptographic purposes
         digest.update(bytes(f"{self.stack_id.rsplit('/', 1)[0]}", "ascii"))
         return digest.hexdigest().upper()
 
