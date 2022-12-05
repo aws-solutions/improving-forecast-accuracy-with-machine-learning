@@ -1,5 +1,5 @@
 PyYAML==5.4.1
 packaging==20.7
 boto3>=1.16.32
-tenacity==8.0.1
+tenacity==8.1.0
 ../../../../../../forecast-shared

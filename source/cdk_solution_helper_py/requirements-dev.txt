@@ -1,5 +1,5 @@
-aws-cdk.core>=1.126.0
-aws-cdk.aws_lambda>=1.126.0
+aws-cdk.core>=1.173.0
+aws-cdk.aws_lambda>=1.173.0
 black
 boto3>=1.17.49
 requests>=2.24.0

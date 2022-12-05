@@ -33,9 +33,10 @@ class Mappings:
                 "Data": {
                     "ID": solution_id,
                     "Version": "%%SOLUTION_VERSION%%",
-                    "SendAnonymousUsageData": "Yes"
-                    if send_anonymous_usage_data
-                    else "No",
+                    "SendAnonymousUsageData": "Yes" if send_anonymous_usage_data else "No",
+                    "SolutionName": "%%SOLUTION_NAME%%",
+                    "AppRegistryName": "%%APP_REG_NAME%%",
+                    "ApplicationType": "AWS-Solutions",
                 }
             },
         )

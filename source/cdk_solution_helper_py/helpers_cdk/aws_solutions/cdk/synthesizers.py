@@ -45,13 +45,9 @@ class CloudFormationTemplate:
         self.stack_name = self.path.stem.split(".")[0]
         self.assets_global.append(self.path)
         try:
-            self.global_asset_name = self.contents["Metadata"][
-                "aws:solutions:templatename"
-            ]
+            self.global_asset_name = self.contents["Metadata"]["aws:solutions:templatename"]
         except KeyError:
-            logger.warning(
-                "for nested stack support, you must provide a filename to TemplateOptions for each stack"
-            )
+            logger.warning("for nested stack support, you must provide a filename to TemplateOptions for each stack")
 
     def delete_bootstrap_parameters(self):
         """Remove the CDK bootstrap parameters, since this stack will not be bootstrapped"""
@@ -97,9 +93,7 @@ class CloudFormationTemplate:
             resource_type = resource.get("Type")
             if resource_type == "AWS::CloudFormation::Stack":
                 try:
-                    nested_stack_filename = resource["Metadata"][
-                        "aws:solutions:templatename"
-                    ]
+                    nested_stack_filename = resource["Metadata"]["aws:solutions:templatename"]
                 except KeyError:
                     raise KeyError("nested stack missing required TemplateOptions")
 
@@ -128,23 +122,14 @@ class CloudFormationTemplate:
         """Patch the lambda functions for S3 deployment compatibility"""
         for (resource_name, resource) in self.contents.get("Resources", {}).items():
             resource_type = resource.get("Type")
-            if (
-                resource_type == "AWS::Lambda::Function"
-                or resource_type == "AWS::Lambda::LayerVersion"
-            ):
+            if resource_type == "AWS::Lambda::Function" or resource_type == "AWS::Lambda::LayerVersion":
                 logger.info(f"{resource_name} ({resource_type}) patching")
 
                 # the key for S3Key for AWS::Lambda:LayerVersion is under "Content".
                 # the key for S3Key FOR AWS::Lambda::Function is under "Code"
-                content_key = (
-                    "Content"
-                    if resource_type == "AWS::Lambda::LayerVersion"
-                    else "Code"
-                )
+                content_key = "Content" if resource_type == "AWS::Lambda::LayerVersion" else "Code"
                 try:
-                    resource_id = resource["Properties"][content_key]["S3Key"].split(
-                        "."
-                    )[0]
+                    resource_id = resource["Properties"][content_key]["S3Key"].split(".")[0]
                 except KeyError:
                     logger.warning(
                         "found resource without an S3Key (this typically occurs when using inline code or during test)"
@@ -167,9 +152,7 @@ class CloudFormationTemplate:
                 elif asset_packaging == "file":
                     archive = self.cloud_assembly_path.joinpath(asset["source"]["path"])
                 else:
-                    raise ValueError(
-                        f"Unsupported asset packaging format: {asset_packaging}"
-                    )
+                    raise ValueError(f"Unsupported asset packaging format: {asset_packaging}")
 
                 # rename archive to match the resource name it was generated for
                 archive_name = f"{resource_name}.zip"
@@ -204,6 +187,61 @@ class CloudFormationTemplate:
 
                 # add resource to the list of regional assets
                 self.assets_regional.append(archive_path)
+
+    def patch_app_reg(self):
+        """Patch the App Registry Info"""
+        for (resource_name, resource) in self.contents.get("Resources", {}).items():
+            resource_type = resource.get("Type")
+
+            if resource_type == "AWS::ApplicationInsights::Application":
+                logger.info(f"{resource_name} ({resource_type}) patching")
+
+                # update CloudFormation resource properties for ServiceCatalogAppRegistry
+                # fmt: off
+                resource["Properties"]["ResourceGroupName"] = {
+                    "Fn::Join": [ # NOSONAR (python:S1192) - string for clarity
+                        "-",
+                        [
+                            "AWS_AppRegistry_Application",
+                            {"Ref": "AWS::StackName"},
+                            {
+                                "Fn::FindInMap": ["Solution", "Data", "AppRegistryName"]  # NOSONAR (python:S1192) - string for clarity
+                            }
+                        ],
+                    ]
+                }
+
+            if resource_type == "AWS::ServiceCatalogAppRegistry::Application":
+                logger.info(f"{resource_name} ({resource_type}) patching")
+
+                # update CloudFormation resource properties for ServiceCatalogAppRegistry
+                # fmt: off
+                resource["Properties"]["Name"] = {
+                    "Fn::Join": [ # NOSONAR (python:S1192) - string for clarity
+                        "-",
+                        [
+                            {"Ref": "AWS::StackName"},
+                            {
+                                "Fn::FindInMap": ["Solution", "Data", "AppRegistryName"]  # NOSONAR (python:S1192) - string for clarity
+                            },
+                        ],
+                    ]
+                }
+                # fmt: on
+
+    def add_resource_association_condition(self):
+        """Add conditions to resource associations if they exist on nested stacks"""
+        for (resource_name, resource) in self.contents.get("Resources", {}).items():
+            resource_type = resource.get("Type")
+
+            if (
+                resource_type == "AWS::ServiceCatalogAppRegistry::ResourceAssociation"
+                and resource["Properties"]["Resource"]["Ref"] != "AWS::StackId"
+            ):
+                nested_stack_logical_id = resource["Properties"]["Resource"]["Ref"]
+
+                if self.contents["Resources"][nested_stack_logical_id].get("Condition"):
+                    resource["Condition"] = self.contents["Resources"][nested_stack_logical_id]["Condition"]
 
     def _build_asset_path(self, asset_path):
         asset_output_path = self.cloud_assembly_path.joinpath(asset_path)
@@ -253,11 +291,7 @@ class SolutionStackSubstitions(DefaultStackSynthesizer):
 
         assets = {}
         try:
-            assets = json.loads(
-                next(
-                    assembly_output_path.glob(self._stack.stack_name + "*.assets.json")
-                ).read_text()
-            )
+            assets = json.loads(next(assembly_output_path.glob(self._stack.stack_name + "*.assets.json")).read_text())
         except StopIteration:
             pass  # use the default (no assets)
 
@@ -269,14 +303,10 @@ class SolutionStackSubstitions(DefaultStackSynthesizer):
         # when called from python directly, this outputs to a temporary directory
         result = DefaultStackSynthesizer.synthesize(self, session)
 
-        asset_path_regional = self._stack.node.try_get_context(
-            "SOLUTIONS_ASSETS_REGIONAL"
-        )
+        asset_path_regional = self._stack.node.try_get_context("SOLUTIONS_ASSETS_REGIONAL")
         asset_path_global = self._stack.node.try_get_context("SOLUTIONS_ASSETS_GLOBAL")
 
-        logger.info(
-            f"solutions parameter substitution in {session.assembly.outdir} started"
-        )
+        logger.info(f"solutions parameter substitution in {session.assembly.outdir} started")
         for template in self._template_names(session):
             logger.info(f"substutiting parameters in {str(template)}")
             with FileInput(template, inplace=True) as template_lines:
@@ -300,12 +330,12 @@ class SolutionStackSubstitions(DefaultStackSynthesizer):
         if not asset_path_global or not asset_path_regional:
             return
 
-        logger.info(
-            f"solutions template customization in {session.assembly.outdir} started"
-        )
+        logger.info(f"solutions template customization in {session.assembly.outdir} started")
         for template in self._templates(session):
             template.patch_lambda()
             template.patch_nested()
+            template.patch_app_reg()
+            # template.add_resource_association_condition()
             template.delete_bootstrap_parameters()
             template.delete_cdk_helpers()
             template.save(
