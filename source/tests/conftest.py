@@ -18,6 +18,7 @@ import pytest
 import yaml
 from moto import mock_s3
 
+
 CONFIG_FILE = "config_and_overrides.yaml"
 
 

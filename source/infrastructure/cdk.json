@@ -2,9 +2,11 @@
   "app": "python3 deploy.py",
   "context": {
     "SOLUTION_NAME": "Improving Forecast Accuracy with Machine Learning",
-    "SOLUTION_ID": "S00123",
-    "SOLUTION_VERSION": "v1.4.0",
-    "VERSION": "1.4.0",
+    "SOLUTION_ID": "SO0123",
+    "SOLUTION_VERSION": "v1.5.0",
+    "APP_REG_NAME": "forecast-ml",
+    "APPLICATION_TYPE": "AWS-Solutions",
+    "VERSION": "1.5.0",
     "@aws-cdk/core:newStyleStackSynthesis": "true"
   }
 }

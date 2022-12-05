@@ -468,9 +468,8 @@ class ForecastStack(SolutionStack):
             },
         )
         downloader.nested_stack_resource.override_logical_id("Downloader")
-        Aspects.of(downloader.nested_stack_resource).add(
-            ConditionalResources(create_forecast_cdn)
-        )
+        downloader.node.default_child.cfn_options.condition = create_forecast_cdn
+
 
         # Tagging
         Tags.of(self).add("SOLUTION_ID", self.node.try_get_context("SOLUTION_ID"))

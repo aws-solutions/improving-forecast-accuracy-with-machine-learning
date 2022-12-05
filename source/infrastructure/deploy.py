@@ -20,6 +20,7 @@ import forecast.sagemaker.notebook
 import quicksight
 from aws_solutions.cdk import CDKSolution
 from forecast.stack import ForecastStack
+from aspects.app_registry import AppRegistry
 
 logger = logging.getLogger("cdk-helper")
 solution = CDKSolution(cdk_json_path=Path(__file__).parent.absolute() / "cdk.json")
@@ -33,7 +34,7 @@ solution = CDKSolution(cdk_json_path=Path(__file__).parent.absolute() / "cdk.jso
 def build_app(context):
     app = cdk.App(context=context)
 
-    ForecastStack(
+    stack = ForecastStack(
         app,
         "forecast-stack-cdk",
         description=f"Automate Amazon Forecast predictor and forecast generation and visualize forecasts via Amazon QuickSight or an Amazon SageMaker Jupyter Notebook",
@@ -44,6 +45,8 @@ def build_app(context):
             solution_version=context.get("SOLUTION_VERSION"),
         ).mappings,
     )
+
+    cdk.Aspects.of(app).add(AppRegistry(stack, "AppRegistryAspect"))
 
     return app.synth()
 
