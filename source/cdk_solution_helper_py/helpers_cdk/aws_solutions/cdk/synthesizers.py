@@ -220,6 +220,7 @@ class CloudFormationTemplate:
                     "Fn::Join": [ # NOSONAR (python:S1192) - string for clarity
                         "-",
                         [
+                            "App",
                             {"Ref": "AWS::StackName"},
                             {
                                 "Fn::FindInMap": ["Solution", "Data", "AppRegistryName"]  # NOSONAR (python:S1192) - string for clarity
