@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2022-12-19
+### Fixed
+- Fixes [Issue #19](https://github.com/aws-solutions/improving-forecast-accuracy-with-machine-learning/issues/19).
+
 ## [1.5.0] - 2022-12-05
 ### Added
 - [Service Catalog AppRegistry](https://docs.aws.amazon.com/servicecatalog/latest/arguide/intro-app-registry.html) 
@@ -23,8 +27,7 @@ AppRegistry and AWS Systems Manager Application Manager.
 ### Changed
 - The notebook instance now uses the platform `notebook-al2-v1`. 
 - Upgrading from earlier versions of the stack is not supported. Please redeploy the stack and copy your configuration
-and data to the newly created forecast data bucket. 
-
+and data to the newly created forecast data bucket.
 
 ## [1.3.3] - 2021-06-23
 ### Changed
@@ -92,7 +95,6 @@ it is recommended that you request a default quota increase with AWS support.
 ### Changed
 - anonymous solution metrics publish on all stack changes
 - improved update emails as datasets are uploaded
-
 
 ## [1.0.0] - 2020-07-02
 ### Added
