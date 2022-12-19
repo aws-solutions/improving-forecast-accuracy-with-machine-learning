@@ -73,6 +73,7 @@ def test_service_catalog_registry_application(synth_template):
                 "Fn::Join": [
                     "-",
                     [
+                        "App",
                         {"Ref": "AWS::StackName"},
                         "improving_forecast_accuracy_with_machine_learning",
                         {"Ref": "AWS::AccountId"},
