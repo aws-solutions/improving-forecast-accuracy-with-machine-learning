@@ -10,7 +10,6 @@
 #  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for  #
 #  the specific language governing permissions and limitations under the License.                                     #
 # #####################################################################################################################
-
 from __future__ import annotations
 
 import csv
@@ -220,7 +219,7 @@ class ForecastStatus:
 
     @property
     @lru_cache()
-    def target_time_series_schema(self) -> Schema:
+    def target_time_series_schema(self) -> "Schema":
         """
         :return: The target time series Schema
         """
@@ -274,7 +273,7 @@ class ForecastStatus:
 
     @property
     @lru_cache()
-    def related_time_series_schema(self) -> Schema:
+    def related_time_series_schema(self) -> "Schema":
         """
         :return: The related time series Schema
         """
@@ -282,7 +281,7 @@ class ForecastStatus:
 
     @property
     @lru_cache()
-    def related_time_series_data(self) -> ETL:
+    def related_time_series_data(self) -> "ETL":
         """
         :return: The cleaned related time series data as an ETL object
         """
@@ -312,7 +311,7 @@ class ForecastStatus:
 
     @property
     @lru_cache()
-    def item_metadata_schema(self) -> Schema:
+    def item_metadata_schema(self) -> "Schema":
         """
         :return: The item metadata dataset Schema
         """
@@ -320,7 +319,7 @@ class ForecastStatus:
 
     @property
     @lru_cache()
-    def item_metadata_data(self) -> ETL:
+    def item_metadata_data(self) -> "ETL":
         """
         :return: The cleaned item metadata data as an ETL object
         """
@@ -335,7 +334,7 @@ class ForecastStatus:
         transformer.apply()
         return etl
 
-    def _schema(self, dataset) -> Union[Schema, None]:
+    def _schema(self, dataset) -> Union["Schema", None]:
         """
         Get the schema of the dataset specified
         :param dataset: The dataset ("TARGET_TIME_SERIES", "RELATED_TIME_SERIES" or "ITEM_METADATA")
@@ -380,9 +379,7 @@ class ForecastStatus:
         for page in paginator:
             matches.extend(page["Forecasts"])
 
-        forecast = next(
-            iter((sorted(matches, key=lambda k: k["CreationTime"], reverse=True)))
-        )
+        forecast = next(iter((sorted(matches, key=lambda k: k["CreationTime"], reverse=True))))
         return namedtuple("Forecast", forecast)(**forecast)
 
     @property
@@ -406,9 +403,7 @@ class ForecastStatus:
         for page in paginator:
             matches.extend(page["Predictors"])
 
-        predictor_arn = next(
-            iter((sorted(matches, key=lambda k: k["CreationTime"], reverse=True)))
-        )["PredictorArn"]
+        predictor_arn = next(iter((sorted(matches, key=lambda k: k["CreationTime"], reverse=True))))["PredictorArn"]
 
         try:
             predictor = self.cli.describe_predictor(PredictorArn=predictor_arn)
@@ -711,9 +706,7 @@ class ForecastStatus:
 class ETL:
     """Used to store and transform Amazon Forecast input, forecast export and predictor backtest export data"""
 
-    def __init__(
-        self, name, schema: Schema, source, identifier, target_field, header="detect"
-    ):
+    def __init__(self, name, schema: "Schema", source, identifier, target_field, header="detect"):
         """
         :param name: the name of the ETL
         :param schema: the schema of the data used (for exports, use the target time series schema)
@@ -960,15 +953,13 @@ def updates_df_as_dataframe(func):
     @wraps(func)
     def wrap(self, *args, **kwargs):
         self.df = self.etl.df.toDF()
-        self.etl.df = DynamicFrame.fromDF(
-            func(self, *args, **kwargs), self.etl.gc, f"{self.etl.name}_{func.__name__}"
-        )
+        self.etl.df = DynamicFrame.fromDF(func(self, *args, **kwargs), self.etl.gc, f"{self.etl.name}_{func.__name__}")
 
     return wrap
 
 
 class ForecastDataTransformation:
-    def __init__(self, etl: ETL):
+    def __init__(self, etl: "ETL"):
         """
         :param etl: the ETL object containing the data
         """
@@ -988,7 +979,7 @@ class ForecastDataTransformation:
 class ForecastPredictorBacktestExportTransformation(ForecastDataTransformation):
     """Transform predictor backtest export data into a format that can be consolidated with input data"""
 
-    def __init__(self, etl: ETL):
+    def __init__(self, etl: "ETL"):
         """
         :param etl: the ETL object containing the data
         """
@@ -1041,7 +1032,7 @@ class ForecastPredictorBacktestExportTransformation(ForecastDataTransformation):
 class ForecastExportTransformation(ForecastDataTransformation):
     """Transform forecast export data into a format that can be consolidated with input data"""
 
-    def __init__(self, etl: ETL):
+    def __init__(self, etl: "ETL"):
         super().__init__(etl)
         self.output_dimensions = []
 
@@ -1084,7 +1075,7 @@ class ForecastExportTransformation(ForecastDataTransformation):
 class ForecastInputTransformation(ForecastDataTransformation):
     """Transform forecast input data into a format that can be consolidated with input data"""
 
-    def __init__(self, etl: ETL):
+    def __init__(self, etl: "ETL"):
         super().__init__(etl)
 
     def apply(self):
