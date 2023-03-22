@@ -52,9 +52,9 @@ setuptools.setup(
         "aws-cdk.core>=1.126.0",
         "aws-cdk.aws_lambda>=1.126.0",
         "Click>=7.1.2",
-        "boto3>=1.17.52",
+        "boto3==1.26.83",
         "requests>=2.28.1",
-        "crhelper>=2.0.6",
+        "crhelper==2.0.11",
     ],
     entry_points="""
         [console_scripts]

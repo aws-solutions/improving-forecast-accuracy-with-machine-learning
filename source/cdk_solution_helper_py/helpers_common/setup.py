@@ -42,7 +42,7 @@ setuptools.setup(
     license="Apache License 2.0",
     packages=setuptools.find_namespace_packages(),
     install_requires=[
-        "boto3>=1.17.52",
+        "boto3==1.26.83",
     ],
     python_requires=">=3.7",
     classifiers=[
