@@ -131,7 +131,7 @@ class Glue(Construct):
                     "--job-bookmark-option": "job-bookmark-disable",
                     "--job-language": "python",
                     "--encryption-type": "sse-s3",
-                    "--additional-python-modules": "boto3==1.20.25",
+                    "--additional-python-modules": "boto3==1.26.83",
                 },
                 "GlueVersion": "2.0",
                 "WorkerType": "G.1X",

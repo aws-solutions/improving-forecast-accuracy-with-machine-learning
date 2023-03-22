@@ -21,6 +21,10 @@ import logging
 import os
 import pwd
 import subprocess
+import sys
+
+subprocess.check_call([sys.executable, "-m", "pip", "install", "boto3==1.26.83"])
+subprocess.check_call([sys.executable, "-m", "pip", "install", "botocore==1.29.85"])
 
 import boto3
 from botocore.config import Config

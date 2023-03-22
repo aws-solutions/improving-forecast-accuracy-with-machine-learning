@@ -1,5 +1,5 @@
-PyYAML==5.4.1
-packaging==20.7
-boto3>=1.16.32
-tenacity==8.1.0
+PyYAML==6.0.0
+packaging==23.0
+boto3==1.26.83
+tenacity==8.2.2
 ../../../../../../forecast-shared
