@@ -16,7 +16,7 @@ from typing import List
 
 import aws_cdk.aws_iam as iam
 from aws_cdk.aws_s3 import Bucket, BucketEncryption, BlockPublicAccess
-from aws_cdk.core import Construct, RemovalPolicy, CfnResource
+from aws_cdk.core import Construct, RemovalPolicy, CfnResource, Aws
 
 from aws_solutions.cdk.cfn_nag import add_cfn_nag_suppressions, CfnNagSuppression
 
@@ -25,11 +25,11 @@ logger = logging.getLogger("cdk-helper")
 
 class SecureBucket(Bucket):
     def __init__(
-        self,
-        scope: Construct,
-        construct_id: str,
-        suppress: List[CfnNagSuppression] = None,
-        **kwargs,
+            self,
+            scope: Construct,
+            construct_id: str,
+            suppress: List[CfnNagSuppression] = None,
+            **kwargs,
     ):
         self.construct_id = construct_id
 
@@ -63,9 +63,41 @@ class SecureBucket(Bucket):
         if suppress:
             add_cfn_nag_suppressions(bucket_cfn, suppress)
 
+        self.add_access_logs_bucket_policy(kwargs)
+
     def override_configuration(self, config, key, default=None):
         if not config.get(key):
             config[key] = default
         else:
             logger.warning(f"overriding {key} may reduce the security of the solution")
         return config
+
+    def add_access_logs_bucket_policy(self, config):
+        if config.get("server_access_logs_bucket"):
+            access_logs_bucket = config.get("server_access_logs_bucket")
+
+            # remove ACL
+            access_logs_bucket.node.default_child.add_deletion_override(
+                "Properties.AccessControl"
+            )
+
+            # add s3 bucket policy to write to access logging bucket
+            access_logs_bucket.add_to_resource_policy(
+                iam.PolicyStatement(
+                    sid="S3ServerAccessLogsPolicy",
+                    resources=[
+                        f"{access_logs_bucket.bucket_arn}/*",
+                    ],
+                    actions=["s3:PutObject"],
+                    effect=iam.Effect.ALLOW,
+                    principals=[iam.ServicePrincipal("logging.s3.amazonaws.com")],
+                    conditions={
+                        "ArnLike": {
+                            "aws:SourceArn": [
+                                self.bucket_arn
+                            ]
+                        },
+                        "StringEquals": {"aws:SourceAccount": Aws.ACCOUNT_ID}
+                    },
+                )
+            )
