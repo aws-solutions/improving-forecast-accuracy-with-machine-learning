@@ -38,7 +38,6 @@ class SourceEntity:
 
     def _update_source_entity(self, obj):
         """Update DataSetArn values in SourceEntity"""
-        # TODO:ERROR_HANDLING: assert, handle, raise, passthrough
         source_object = obj.get(self.source_entity_type, None)
         assert source_object
         logger.debug(
@@ -67,7 +66,6 @@ class SourceEntity:
                 f"DataSetPlaceholder: {ds_ref['DataSetPlaceholder']}, DataSetArn: {ds_ref['DataSetArn']}"
             )
 
-    # TODO:RENAME _get_map to something better and add pydoc
     def _get_map(self, sub_type, map_type):
         if sub_type not in self.config_data:
             raise ValueError(f"Unknown sub type {sub_type}.")

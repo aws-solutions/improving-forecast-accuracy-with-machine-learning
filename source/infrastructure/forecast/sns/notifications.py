@@ -12,10 +12,10 @@
 # #####################################################################################################################
 from pathlib import Path
 
+from constructs import Construct
 from aws_cdk.aws_sns import Subscription, SubscriptionProtocol
 from aws_cdk.aws_sns import TopicProps
-from aws_cdk.core import (
-    Construct,
+from aws_cdk import (
     CfnParameter,
     CfnCondition,
     Aspects,

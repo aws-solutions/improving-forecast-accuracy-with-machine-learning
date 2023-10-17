@@ -12,8 +12,8 @@
 # #####################################################################################################################
 import logging
 
-from aws_cdk.core import CfnParameter, Construct
-
+from constructs import Construct
+from aws_cdk import CfnParameter
 from aws_solutions.cdk import SolutionStack
 
 logger = logging.getLogger("cdk-helper")

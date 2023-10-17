@@ -14,7 +14,7 @@
 from dataclasses import dataclass, field
 
 from aws_cdk.aws_lambda import IFunction
-from aws_cdk.core import Aws
+from aws_cdk import Aws
 
 from aws_solutions.cdk.aws_lambda.environment_variable import EnvironmentVariable
 

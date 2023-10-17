@@ -13,9 +13,10 @@
 from pathlib import Path
 
 import aws_cdk.aws_iam as iam
+from constructs import Construct
 from aws_cdk.aws_s3 import IBucket, Location
 from aws_cdk.aws_s3_deployment import BucketDeployment, Source
-from aws_cdk.core import Construct, Aws, CfnResource, Fn
+from aws_cdk import Aws, CfnResource, Fn
 
 from aws_solutions.cdk.aws_lambda.cfn_custom_resources.url_downloader import (
     UrlDownloader,

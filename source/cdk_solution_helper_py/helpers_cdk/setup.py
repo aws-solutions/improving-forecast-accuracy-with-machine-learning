@@ -16,8 +16,7 @@ from pathlib import Path
 
 import setuptools
 
-VERSION_RE = re.compile(r"\#\# \[(?P<version>.*)\]", re.MULTILINE)  # NOSONAR
-
+VERSION_RE = re.compile(r"\#\# \[(?P<version>.*)\]", re.MULTILINE) # NOSONAR - multi-conditioned REGEX allows more complexity.
 
 def get_version():
     """
@@ -49,11 +48,11 @@ setuptools.setup(
         ]
     },
     install_requires=[
-        "aws-cdk.core>=1.126.0",
-        "aws-cdk.aws_lambda>=1.126.0",
+        "aws_cdk_lib>=2.0.0",
+        "constructs>=10.2.70",
         "Click>=7.1.2",
         "boto3==1.26.83",
-        "requests>=2.28.1",
+        "requests>=2.31.0",
         "crhelper==2.0.11",
     ],
     entry_points="""

@@ -11,11 +11,11 @@
 #  the specific language governing permissions and limitations under the License.                                     #
 # #####################################################################################################################
 
+from constructs import Construct
 from aws_cdk.aws_s3 import LifecycleRule
-from aws_cdk.core import Construct, Duration
+from aws_cdk import Duration
 
 from aws_solutions.cdk.utils.secure_bucket import SecureBucket
-
 
 class DataBucket(SecureBucket):
     def __init__(self, scope: Construct, **kwargs):

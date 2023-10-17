@@ -47,7 +47,7 @@ The following procedures assumes that all of the OS-level configuration has been
 Prepare a Python virtual environment:
 ```
 # ensure Python 3 and virtualenv are installed
-cd <repository_name>/source/synthetic
+cd improving-forecast-accuracy-with-machine-learning/source/synthetic
 virtualenv .venv
 source .venv/bin/activate
 pip install -r ../requirements-build-and-test.txt

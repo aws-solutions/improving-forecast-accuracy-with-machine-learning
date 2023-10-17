@@ -15,7 +15,7 @@ from pathlib import Path
 from aws_cdk.aws_lambda import Runtime, RuntimeFamily, Tracing
 from aws_cdk.aws_s3 import Bucket
 from aws_cdk.aws_stepfunctions import StateMachine
-from aws_cdk.core import Construct
+from constructs import Construct
 
 from aws_solutions.cdk.aws_lambda.python.function import SolutionsPythonFunction
 from aws_solutions.cdk.cfn_nag import add_cfn_nag_suppressions, CfnNagSuppression
@@ -36,11 +36,11 @@ class S3EventHandler(SolutionsPythonFunction):
             / "notification"
             / "handler.py"
         )
-        function = "notification"
+        _function = "notification"
         kwargs["runtime"] = Runtime("python3.8", RuntimeFamily.PYTHON)
         kwargs["tracing"] = Tracing.ACTIVE
 
-        super().__init__(scope, construct_id, entrypoint, function, **kwargs)
+        super().__init__(scope, construct_id, entrypoint, _function, **kwargs)
         self.add_environment("STATE_MACHINE_ARN", state_machine.state_machine_arn)
 
         state_machine.grant_start_execution(self)

@@ -14,9 +14,9 @@ from pathlib import Path
 from typing import Optional
 
 import aws_cdk.aws_iam as iam
+from constructs import Construct
 from aws_cdk.aws_s3 import Location, Bucket
-from aws_cdk.core import Construct, CfnResource, Duration, Aws
-
+from aws_cdk import CfnResource, Duration, Aws
 from aws_solutions.cdk.aws_lambda.python.function import SolutionsPythonFunction
 
 

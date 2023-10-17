@@ -15,11 +15,10 @@
 
 from pathlib import Path
 
-import aws_cdk.assertions as assertions
 import forecast.sagemaker.notebook
 import pytest
 import quicksight
-from aws_cdk import core as cdk
+import aws_cdk as cdk
 from aws_cdk.assertions import Capture, Template, Match
 from aws_solutions.cdk import CDKSolution
 from forecast.stack import ForecastStack
@@ -59,9 +58,7 @@ def synth_template():
     template = Template.from_stack(stack)
     yield template, app
 
-
 app_registry_capture = Capture()
-
 
 def test_service_catalog_registry_application(synth_template):
     template, app = synth_template
@@ -75,7 +72,7 @@ def test_service_catalog_registry_application(synth_template):
                     [
                         "App",
                         {"Ref": "AWS::StackName"},
-                        "improving_forecast_accuracy_with_machine_learning",
+                        app.node.try_get_context("APP_REG_NAME"),
                         {"Ref": "AWS::AccountId"},
                         {"Ref": "AWS::Region"},
                     ],
@@ -94,10 +91,9 @@ def test_service_catalog_registry_application(synth_template):
         },
     )
 
-
 def test_resource_association_nested_stacks(synth_template):
     template, app = synth_template
-    template.resource_count_is("AWS::ServiceCatalogAppRegistry::ResourceAssociation", 2)
+    template.resource_count_is("AWS::ServiceCatalogAppRegistry::ResourceAssociation", 1)
     template.has_resource_properties(
         "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
         {
@@ -105,34 +101,4 @@ def test_resource_association_nested_stacks(synth_template):
             "Resource": {"Ref": "AWS::StackId"},
             "ResourceType": "CFN_STACK",
         },
-    )
-
-    template.has_resource(
-        "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
-        {
-            "Properties": {
-                "Application": {"Fn::GetAtt": [app_registry_capture, "Id"]},
-                "Resource": {"Ref": Match.any_value()},
-                "ResourceType": "CFN_STACK",
-            },
-            "Condition": Match.any_value(),
-        },
-    )
-
-
-def test_attr_grp_association(synth_template):
-    attr_grp_capture = Capture()
-    template, app = synth_template
-    template.resource_count_is("AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation", 1)
-    template.has_resource_properties(
-        "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
-        {
-            "Application": {"Fn::GetAtt": [app_registry_capture.as_string(), "Id"]},
-            "AttributeGroup": {"Fn::GetAtt": [attr_grp_capture, "Id"]},
-        },
-    )
-
-    assert (
-        template.to_json()["Resources"][attr_grp_capture.as_string()]["Type"]
-        == "AWS::ServiceCatalogAppRegistry::AttributeGroup"
     )

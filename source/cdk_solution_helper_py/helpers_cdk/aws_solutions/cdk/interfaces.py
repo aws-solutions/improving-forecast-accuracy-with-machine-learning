@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Union, List
 
 import jsii
-from aws_cdk.core import (
+from aws_cdk import (
     ITemplateOptions,
     Stack,
     NestedStack,

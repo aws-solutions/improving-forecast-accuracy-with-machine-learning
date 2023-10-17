@@ -21,8 +21,7 @@ from typing import Dict, Union
 
 import jsii
 from aws_cdk.aws_lambda import Runtime
-from aws_cdk.core import ILocalBundling, BundlingOptions
-
+from aws_cdk import ILocalBundling, BundlingOptions
 from aws_solutions.cdk.helpers import copytree
 
 DEFAULT_RUNTIME = Runtime.PYTHON_3_7
@@ -58,7 +57,7 @@ class SolutionsPythonBundling:
         )
         return os_platform_can_bundle
 
-    def try_bundle(self, output_dir: str, options: BundlingOptions) -> bool:
+    def try_bundle(self, output_dir: str, options: BundlingOptions) -> bool: # NOSONAR - BundlingOptions is a required argument for this function
         if not self.platform_supports_bundling:
             raise SolutionsPythonBundlingException(
                 "this platform does not support bundling"

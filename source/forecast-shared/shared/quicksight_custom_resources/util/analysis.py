@@ -54,7 +54,6 @@ class Analysis(QuickSightResource):
         logger.info(f"requesting quicksight create_analysis: {self.id}")
         quicksight_client = get_quicksight_client()
 
-        # TODO: would prefer a generic name here
         source_entity = self._get_source_entity()
         source_entity["SourceTemplate"]["DataSetReferences"][0][
             "DataSetPlaceholder"

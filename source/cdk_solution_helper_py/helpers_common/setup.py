@@ -16,7 +16,7 @@ from pathlib import Path
 
 import setuptools
 
-VERSION_RE = re.compile(r"\#\# \[(?P<version>.*)\]", re.MULTILINE)  # NOSONAR
+VERSION_RE = re.compile(r"\#\# \[(?P<version>.*)\]", re.MULTILINE) # NOSONAR - multi-conditioned REGEX allows more complexity.
 
 
 def get_version():

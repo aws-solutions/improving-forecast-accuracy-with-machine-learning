@@ -92,7 +92,7 @@ class DataSet(QuickSightResource):
                 Permissions=self._get_permissions(),
                 PhysicalTableMap=physical_table_map,
                 LogicalTableMap=logical_table_map,
-                ImportMode="DIRECT_QUERY",  # TODO: support SPICE
+                ImportMode="DIRECT_QUERY",
             )
             logger.info(
                 f"finished creating quicksight create_data_set id:{self.id}, "

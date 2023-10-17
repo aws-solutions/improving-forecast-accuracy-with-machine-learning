@@ -14,8 +14,7 @@
 import logging
 from pathlib import Path
 
-from aws_cdk import core as cdk
-
+import aws_cdk as cdk
 import forecast.sagemaker.notebook
 import quicksight
 from aws_solutions.cdk import CDKSolution
@@ -25,19 +24,19 @@ from aspects.app_registry import AppRegistry
 logger = logging.getLogger("cdk-helper")
 solution = CDKSolution(cdk_json_path=Path(__file__).parent.absolute() / "cdk.json")
 
-
 @solution.context.requires("SOLUTION_NAME")
 @solution.context.requires("SOLUTION_ID")
 @solution.context.requires("SOLUTION_VERSION")
 @solution.context.requires("BUCKET_NAME")
 @solution.context.requires("NOTEBOOKS", forecast.sagemaker.notebook.context)
+
 def build_app(context):
     app = cdk.App(context=context)
 
     stack = ForecastStack(
         app,
         "forecast-stack-cdk",
-        description=f"Automate Amazon Forecast predictor and forecast generation and visualize forecasts via Amazon QuickSight or an Amazon SageMaker Jupyter Notebook",
+        description="Automate Amazon Forecast predictor and forecast generation and visualize forecasts via Amazon QuickSight or an Amazon SageMaker Jupyter Notebook",
         template_filename="improving-forecast-accuracy-with-machine-learning.template",
         synthesizer=solution.synthesizer,
         extra_mappings=quicksight.TemplateSource(
@@ -45,11 +44,10 @@ def build_app(context):
             solution_version=context.get("SOLUTION_VERSION"),
         ).mappings,
     )
-
+    
     cdk.Aspects.of(app).add(AppRegistry(stack, "AppRegistryAspect"))
 
     return app.synth()
-
 
 if __name__ == "__main__":
     build_app()

@@ -11,10 +11,8 @@
 #  the specific language governing permissions and limitations under the License.                                     #
 # #####################################################################################################################
 
-from aws_cdk.core import Construct
-
+from constructs import Construct
 from aws_solutions.cdk.utils.secure_bucket import SecureBucket
-
 
 class AthenaBucket(SecureBucket):
     def __init__(self, scope: Construct, **kwargs):

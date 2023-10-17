@@ -13,10 +13,9 @@
 
 from pathlib import Path
 
-from aws_cdk.core import Construct, Stack
-
+from constructs import Construct
+from aws_cdk import Stack
 from aws_solutions.cdk.aws_lambda.python.layer import SolutionsPythonLayerVersion
-
 
 class Layer(SolutionsPythonLayerVersion):
     def __init__(self, scope: Construct, construct_id: str, **kwargs):
