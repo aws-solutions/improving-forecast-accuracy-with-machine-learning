@@ -11,8 +11,7 @@
 #  the specific language governing permissions and limitations under the License.                                     #
 # #####################################################################################################################
 from pathlib import Path
-
-from aws_cdk.core import Construct
+from constructs import Construct
 
 from aws_solutions.cdk.stepfunctions.solutionstep import SolutionStep
 
@@ -29,7 +28,7 @@ class Base(SolutionStep):
         **kwargs,
     ):
         if not function:
-            function = name
+            function = name  # NOSONAR - allow for variable name for argument consistency
 
         super().__init__(
             scope,

@@ -15,7 +15,6 @@ from dataclasses import dataclass, field
 
 from aws_cdk.aws_lambda import IFunction
 
-
 @dataclass
 class EnvironmentVariable:
     scope: IFunction

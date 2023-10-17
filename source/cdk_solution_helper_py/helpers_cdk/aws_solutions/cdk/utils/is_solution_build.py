@@ -11,8 +11,7 @@
 #  the specific language governing permissions and limitations under the License.                                     #
 # #####################################################################################################################
 
-from aws_cdk.core import Construct
-
+from constructs import Construct
 
 def is_solution_build(construct: Construct):
     """Detect if this is being run from build-s3-dist.py and should package assets accordingly"""

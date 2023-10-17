@@ -59,7 +59,7 @@ def validate_date(ctx, param, value):
         )
 
 
-def validate_frequency(ctx, param, value):
+def validate_frequency(ctx, param, value):   # NOSONAR
     """
     Validate a frequency is compatible with Amazon Forecast supported frequencies (Y|M|W|D|30min|15min|10min|5min|1min)
     :param ctx: the click context (required, not used)
@@ -580,9 +580,7 @@ def get_parameter(dictionary, name, default=None):
     "--plot", is_flag=True, help="set this flag to output plots of each model"
 )
 @click.argument("input", default="config.yaml", type=click.File("rb"))
-def create(
-    start: datetime, length: int, plot: bool, input: click.File
-):  # NOSONAR - higher cognitive complexity allowed
+def create(start: datetime, length: int, plot: bool, input: click.File):  # NOSONAR -higher cognitive complexity allowed
     """Create synthetic data for the items defined in INPUT (default: `config.yaml`)"""
 
     # load the file

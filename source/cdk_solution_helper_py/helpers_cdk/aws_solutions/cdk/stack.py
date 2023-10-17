@@ -13,15 +13,14 @@
 
 import re
 from typing import Optional
-
-from aws_cdk.core import Stack, Construct, NestedStack
-
+from constructs import Construct
+from aws_cdk import Stack, NestedStack
 from aws_solutions.cdk.aws_lambda.cfn_custom_resources.solutions_metrics import Metrics
 from aws_solutions.cdk.interfaces import TemplateOptions
 from aws_solutions.cdk.mappings import Mappings
 
 RE_SOLUTION_ID = re.compile(r"^SO\d+(-.*)*$")
-RE_TEMPLATE_FILENAME = re.compile(r"^[a-z]+(?:-[a-z]+)*\.template$")  # NOSONAR
+RE_TEMPLATE_FILENAME = re.compile(r"^[a-z]+(?:-[a-z]+)*\.template$") # NOSONAR - multi-conditioned REGEX allows more complexity.
 
 
 def validate_re(name, value, regex: re.Pattern):

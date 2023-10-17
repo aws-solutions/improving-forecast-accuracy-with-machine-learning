@@ -36,7 +36,6 @@ def handler(event, context):
     forecast = config.forecast(dataset_file, dataset_group_name, predictor_arn)
 
     if forecast.status == Status.DOES_NOT_EXIST:
-        # TODO: publish predictor stats to CloudWatch prior to create
         logger.info("Creating forecast for %s" % dataset_group_name)
         forecast.create()
 

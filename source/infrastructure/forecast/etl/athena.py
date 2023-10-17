@@ -10,9 +10,9 @@
 #  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for  #
 #  the specific language governing permissions and limitations under the License.                                     #
 # #####################################################################################################################
+from constructs import Construct
 from aws_cdk.aws_s3 import IBucket
-from aws_cdk.core import Construct, CfnResource, Aws
-
+from aws_cdk import CfnResource, Aws
 
 class Athena(Construct):
     def __init__(self, scope: Construct, id: str, athena_bucket: IBucket):

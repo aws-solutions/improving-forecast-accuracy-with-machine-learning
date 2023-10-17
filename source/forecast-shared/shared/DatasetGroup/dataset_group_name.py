@@ -18,7 +18,7 @@ class DatasetGroupName:
     """Used to validate dataset names provided in configuration files"""
 
     valid_dataset_max_len = 63
-    valid_dataset_name = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,62}$")
+    valid_dataset_name = re.compile(r"^[a-zA-Z]\w{0,62}$")
 
     def __init__(self, name: str):
         self.name = name

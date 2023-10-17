@@ -75,7 +75,7 @@ The following procedures assumes that all the OS-level configuration has been co
 
 Clone this git repository
 
-`git clone https://github.com/aws-solutions/<repository_name>`
+`git clone https://github.com/aws-solutions/improving-forecast-accuracy-with-machine-learning`
 
 ## 2. Build the solution for deployment
 

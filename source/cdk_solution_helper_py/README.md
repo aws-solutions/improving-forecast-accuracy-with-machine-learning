@@ -62,8 +62,9 @@ This might be a file called `app.py` in your CDK application directory
 import logging
 from pathlib import Path
 
-from aws_cdk import core
-from aws_cdk.core import CfnParameter, Construct
+from constructs import Construct
+from aws_cdk as core
+from aws_cdk import CfnParameter
 
 from aws_solutions.cdk import CDKSolution
 from aws_solutions.cdk.stack import SolutionStack

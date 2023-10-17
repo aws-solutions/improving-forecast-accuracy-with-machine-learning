@@ -16,13 +16,14 @@ from pathlib import Path
 from typing import List, Optional
 
 import aws_cdk.aws_iam as iam
+from constructs import Construct
 from aws_cdk.aws_s3 import IBucket
 from aws_cdk.aws_s3_deployment import Source, BucketDeployment
 from aws_cdk.aws_sagemaker import (
     CfnNotebookInstance,
     CfnNotebookInstanceLifecycleConfig,
 )
-from aws_cdk.core import Construct, CfnTag, Fn, Aws, CfnCondition, Aspects
+from aws_cdk import CfnTag, Fn, Aws, CfnCondition, Aspects
 
 from aws_solutions.cdk.aspects import ConditionalResources
 from aws_solutions.cdk.cfn_nag import CfnNagSuppression, add_cfn_nag_suppressions
@@ -51,7 +52,7 @@ class Notebook(Construct):
         notebook_destination_bucket: IBucket = None,
         notebook_destination_prefix: str = None,
         create_notebook: Optional[CfnCondition] = None,
-    ):  # NOSONAR
+    ):  # NOSONAR (python:S107) - allow large number of method parameters
         super().__init__(scope, id)
         self.buckets = buckets if buckets else []
         self.deployment = None
@@ -84,7 +85,7 @@ class Notebook(Construct):
         )
 
         # notebook instance
-        self.instance = CfnNotebookInstance(
+        self.instance = CfnNotebookInstance( # NOSONAR - We utilize resource policies to restrict access
             self,
             "NotebookInstance",
             notebook_instance_name=f"{Aws.STACK_NAME}-aws-forecast-visualization",

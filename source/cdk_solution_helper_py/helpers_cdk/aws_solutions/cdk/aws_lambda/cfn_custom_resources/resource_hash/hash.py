@@ -12,8 +12,8 @@
 # #####################################################################################################################
 from pathlib import Path
 
-from aws_cdk.core import (
-    Construct,
+from constructs import Construct
+from aws_cdk import (
     CfnResource,
     Stack,
 )

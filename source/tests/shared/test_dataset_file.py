@@ -143,7 +143,8 @@ def test_s3_file_hash(dataset_target, bucket, dataset_file):
     # create some random data to be checksummed
     MB = 1024 * 1024
     random_data = np.random.bytes(25 * MB)
-    hexdigest = md5(random_data).hexdigest()
+    hexdigest = md5(random_data, usedforsecurity=False).hexdigest()
+    #Since it is used to test, disbaled usedforsecurity flag
 
     # write the data
     cli = boto3.client("s3")

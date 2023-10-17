@@ -14,10 +14,11 @@
 from pathlib import Path
 from typing import Optional, List
 
+from constructs import Construct
 from aws_cdk.aws_events import EventBus
 from aws_cdk.aws_lambda import Tracing, Runtime, RuntimeFamily
 from aws_cdk.aws_stepfunctions import IChainable, TaskInput, State
-from aws_cdk.core import Construct, Duration
+from aws_cdk import Duration
 
 from aws_solutions.cdk.aws_lambda.environment import Environment
 from aws_solutions.cdk.aws_lambda.python.function import SolutionsPythonFunction
@@ -130,7 +131,7 @@ class SolutionStep(Construct):
             if libraries and any(not l.exists() for l in libraries):
                 raise ValueError(f"libraries provided, but do not exist at {libraries}")
 
-            function = kwargs.pop("function")
+            _function = kwargs.pop("function")
             kwargs["layers"] = kwargs.get("layers", [])
             kwargs["tracing"] = Tracing.ACTIVE
             kwargs["timeout"] = kwargs.get("timeout", Duration.seconds(15))
@@ -140,7 +141,7 @@ class SolutionStep(Construct):
                 scope,
                 construct_id,
                 entrypoint,
-                function,
+                _function,
                 libraries=libraries,
                 **kwargs,
             )

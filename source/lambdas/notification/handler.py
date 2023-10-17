@@ -22,7 +22,8 @@ from shared.s3.notification import Event
 logger = get_logger(__name__)
 
 
-def notification(event: dict, context):
+def notification(event: dict, context):  # NOSONAR - context is a required argument for this function
+    # Removing context could potentially cause breaking changes in deployment
     """Handles an S3 Event Notification (for any .csv file written to any key under train/*)
 
     :param dict event: AWS Lambda Event (in this case, an S3 Event message)

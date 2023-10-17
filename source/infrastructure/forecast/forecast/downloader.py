@@ -14,11 +14,11 @@ from dataclasses import field, dataclass
 from typing import Optional
 
 import aws_cdk.aws_iam as iam
+from constructs import Construct
 from aws_cdk.aws_s3 import Location
-from aws_cdk.core import (
+from aws_cdk import (
     CfnParameter,
     CfnCondition,
-    Construct,
     Fn,
     Aws,
     Aspects,
