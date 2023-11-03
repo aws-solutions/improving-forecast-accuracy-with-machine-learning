@@ -59,7 +59,7 @@ def validate_date(ctx, param, value):
         )
 
 
-def validate_frequency(ctx, param, value):   # NOSONAR
+def validate_frequency(ctx, param, value): # NOSONAR - The attributes ctx and param are required for this function.
     """
     Validate a frequency is compatible with Amazon Forecast supported frequencies (Y|M|W|D|30min|15min|10min|5min|1min)
     :param ctx: the click context (required, not used)

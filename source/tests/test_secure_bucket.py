@@ -32,7 +32,7 @@ def synth_template():
     app = cdk.App(
         context={
             "SOLUTION_NAME": "Improving Forecast Accuracy with Machine Learning",
-            "SOLUTION_ID": "SO0123",
+            "SOLUTION_ID": "SO0123Test",
             "SOLUTION_VERSION": "v1.5.5",
             "APP_REG_NAME": "improving_forecast_accuracy_with_machine_learning",
             "APPLICATION_TYPE": "AWS-Solutions",

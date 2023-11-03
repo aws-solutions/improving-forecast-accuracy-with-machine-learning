@@ -60,6 +60,10 @@ class SolutionStep(Construct):
             [
                 CfnNagSuppression(
                     "W12", "IAM policy for AWS X-Ray requires an allow on *"
+                ),                 
+                CfnNagSuppression(
+                    "W76",
+                    "SPCM for IAM policy document is higher than 25",
                 )
             ],
         )

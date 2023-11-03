@@ -102,7 +102,7 @@ def test_get_tags():
             "owner": "owner_active",
             "LatestDatasetUpdateETag": "abcdef",
             "LatestDatasetUpdateName": "demand_15.metadata.csv",
-            "SolutionId": "SO0123",
+            "SolutionId": "SO0123Test",
             "removed_globally": "to-remove",
             "removed_resource": "to-remove",
         }

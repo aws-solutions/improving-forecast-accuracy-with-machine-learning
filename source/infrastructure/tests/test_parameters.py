@@ -179,7 +179,7 @@ def test_solution_mappings(template_cdk):
     # check the required properties for AWS Solutions Deployment
     solution_data_mappings = template_cdk["Mappings"]["Solution"]["Data"]
     solution_source_mappings = template_cdk["Mappings"]["SourceCode"]["General"]
-    assert solution_data_mappings["ID"] == "SO0123"
+    assert solution_data_mappings["ID"] == "SO0123Test"
     assert solution_data_mappings["Version"]
     assert solution_data_mappings["SendAnonymousUsageData"] == "Yes"
     assert solution_source_mappings["S3Bucket"]
@@ -195,7 +195,7 @@ def test_metadata(template_cdk):
 
 def test_stack_description(template_cdk):
     assert template_cdk["Description"].startswith(
-        "(SO0123) Improving Forecast Accuracy with Machine Learning"
+        "(SO0123Test) Improving Forecast Accuracy with Machine Learning"
     )
 
 

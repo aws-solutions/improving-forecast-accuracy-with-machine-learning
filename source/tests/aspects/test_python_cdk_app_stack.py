@@ -33,7 +33,7 @@ def synth_template():
     app = cdk.App(
         context={
             "SOLUTION_NAME": "Improving Forecast Accuracy with Machine Learning",
-            "SOLUTION_ID": "SO0123",
+            "SOLUTION_ID": "SO0123Test",
             "SOLUTION_VERSION": "v1.4.0",
             "APP_REG_NAME": "improving_forecast_accuracy_with_machine_learning",
             "APPLICATION_TYPE": "AWS-Solutions",
@@ -80,11 +80,11 @@ def test_service_catalog_registry_application(synth_template):
             },
             "Description": "Service Catalog application to track and manage all your resources for the solution Improving Forecast Accuracy with Machine Learning",
             "Tags": {
-                "SOLUTION_ID": "SO0123",
+                "SOLUTION_ID": "SO0123Test",
                 "SOLUTION_NAME": "Improving Forecast Accuracy with Machine Learning",
                 "SOLUTION_VERSION": "v1.4.0",
                 "Solutions:ApplicationType": "AWS-Solutions",
-                "Solutions:SolutionID": "SO0123",
+                "Solutions:SolutionID": "SO0123Test",
                 "Solutions:SolutionName": "Improving Forecast Accuracy with Machine Learning",
                 "Solutions:SolutionVersion": "v1.4.0",
             },

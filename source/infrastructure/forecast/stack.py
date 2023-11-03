@@ -345,8 +345,21 @@ class ForecastStack(SolutionStack):
                 ),
                 CfnNagSuppression(
                     "W12", "IAM policy for AWS X-Ray requires an allow on *"
+                )            
+            ]
+        )
+        add_cfn_nag_suppressions(
+            resource=state_machine.role.node.try_find_child("DefaultPolicy").node.find_child("Resource"),
+            suppressions=[
+                CfnNagSuppression(
+                    "W76",
+                    "SPCM for IAM policy document is higher than 25",
                 ),
-            ],
+                CfnNagSuppression(
+                    "W12", 
+                    "IAM policy should not allow * resource"
+                )            
+            ]
         )
 
         # S3 Notifications
@@ -380,6 +393,10 @@ class ForecastStack(SolutionStack):
                 CfnNagSuppression(
                     "W12",
                     "bucket resource is '*' due to circular dependency with bucket and role creation at the same time",
+                ),        
+                CfnNagSuppression(
+                    "W76",
+                    "SPCM for IAM policy document is higher than 25"
                 )
             ],
         )

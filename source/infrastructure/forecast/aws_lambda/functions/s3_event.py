@@ -49,7 +49,12 @@ class S3EventHandler(SolutionsPythonFunction):
             self.role.node.try_find_child("DefaultPolicy").node.find_child("Resource"),
             [
                 CfnNagSuppression(
-                    "W12", "IAM policy for AWS X-Ray requires an allow on *"
-                )
+                    "W12", 
+                    "IAM policy for AWS X-Ray requires an allow on *"
+                ), 
+                CfnNagSuppression(
+                    "W76",
+                    "SPCM for IAM policy document is higher than 25",
+                ),
             ],
         )

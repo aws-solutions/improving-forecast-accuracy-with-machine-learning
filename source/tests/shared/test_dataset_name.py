@@ -32,7 +32,7 @@ def test_dataset_name_invalid():
 
     assert (
         str(ex.value)
-        == "Dataset name (Invalid-Name) must match ^[a-zA-Z]\w{0,62}$"
+        == "Dataset name (Invalid-Name) must match ^[a-zA-Z]\\w{0,62}$"
     )
 
 
