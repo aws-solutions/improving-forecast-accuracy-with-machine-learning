@@ -13,8 +13,8 @@
 from pathlib import Path
 from typing import Optional
 
-from aws_cdk.core import (
-    Construct,
+from constructs import Construct
+from aws_cdk import (
     CfnResource,
     Aws,
     Stack,

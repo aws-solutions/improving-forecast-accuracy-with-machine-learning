@@ -29,7 +29,7 @@ class SolutionContext:
         self.cdk_json_path = cdk_json_path
         self.context = self._load_cdk_context()
 
-    def requires(  # NOSONAR - higher cognitive complexity allowed
+    def requires(  # NOSONAR - higher cognitive complexity allowed for embedded, multi-condition function.
         self, context_var_name, context_var_value=None
     ):
         context = self.context

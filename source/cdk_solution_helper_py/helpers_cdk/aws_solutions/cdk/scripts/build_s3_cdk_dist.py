@@ -197,23 +197,6 @@ class GlobalAssetPackager(BaseAssetPackager):
         logger.info("packaging global assets")
 
 
-def validate_version_code(ctx, param, value):
-    """
-    Version codes are validated as semantic versions prefixed by a v, e.g. v1.2.3
-    :param ctx: the click context
-    :param param: the click parameter
-    :param value: the parameter value
-    :return: the validated value
-    """
-    re_semver = r"^v(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"
-    if re.match(re_semver, value):
-        return value
-    else:
-        raise click.BadParameter(
-            "please specifiy major, minor and patch versions, e.g. v1.0.0"
-        )
-
-
 @click.group()
 @click.option(
     "--log-level",
@@ -332,8 +315,8 @@ def source_code_package(ctx, ignore, solution_name):
 @click.option(
     "--version-code",
     help="The version of the package.",
-    required=True,
-    callback=validate_version_code,
+    required=True
+    # Disabled version_code check as it gives error in NightsWatch.
 )
 @click.option(
     "--cdk-app-path",

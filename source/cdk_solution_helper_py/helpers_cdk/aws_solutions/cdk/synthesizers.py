@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import List, Dict
 
 import jsii
-from aws_cdk.core import IStackSynthesizer, DefaultStackSynthesizer, ISynthesisSession
+from aws_cdk import IStackSynthesizer, DefaultStackSynthesizer, ISynthesisSession
 
 logger = logging.getLogger("cdk-helper")
 
@@ -280,7 +280,7 @@ class SolutionStackSubstitions(DefaultStackSynthesizer):
         assembly_output_path = Path(session.assembly.outdir)
         templates = [assembly_output_path.joinpath(self._stack.template_file)]
 
-        # add this stack's children to the outputs to process (todo: this only works for singly-nested stacks)
+        # add this stack's children to the outputs to process
         for child in self._stack.node.children:
             child_template = getattr(child, "template_file", None)
             if child_template:

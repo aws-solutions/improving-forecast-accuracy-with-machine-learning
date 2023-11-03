@@ -57,7 +57,7 @@ class Config:
         :param item: The config item to get
         :return: The configured config item or default if an override is not specified.
         """
-        config = copy.deepcopy(self.config)
+        config = copy.deepcopy(self.config) # NOSONAR - allow for variable name
         config_for = config_for if config_for else dataset_file.prefix
 
         # unroll the config for this dataset file type

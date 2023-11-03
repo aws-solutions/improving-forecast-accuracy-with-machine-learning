@@ -1,8 +1,10 @@
-aws-cdk.core>=1.173.0
-aws-cdk.aws_lambda>=1.173.0
+aws_cdk_lib==2.88.0
+aws-cdk.aws-servicecatalogappregistry-alpha==2.88.0a0
+aws_solutions_constructs.aws_lambda_sns==2.41.0
+# aws-solutions-python>=2.0.0
 black
 boto3==1.26.83
-requests>=2.28.1
+requests==2.31.0
 crhelper==2.0.11
 Click
 moto

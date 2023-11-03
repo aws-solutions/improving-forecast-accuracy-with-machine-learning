@@ -245,7 +245,7 @@ class Forecast(ForecastClient):
         try:
             self.cli.describe_predictor(PredictorArn=self._predictor_arn)
             is_auto_predictor = False
-        except self.cli.exceptions.InvalidInputException as exc:
+        except self.cli.exceptions.InvalidInputException:
             self.cli.describe_auto_predictor(PredictorArn=self._predictor_arn)
             is_auto_predictor = True
         return is_auto_predictor

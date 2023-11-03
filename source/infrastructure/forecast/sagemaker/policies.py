@@ -15,9 +15,9 @@ from dataclasses import dataclass
 from typing import List
 
 import aws_cdk.aws_iam as iam
+from constructs import Construct
 from aws_cdk.aws_s3 import IBucket
-from aws_cdk.core import Construct, Fn, Aws
-
+from aws_cdk import Fn, Aws
 
 @dataclass
 class NotebookPolicies:

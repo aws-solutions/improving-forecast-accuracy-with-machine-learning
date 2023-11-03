@@ -21,10 +21,11 @@ from aws_cdk.aws_iam import (
     Policy,
     Effect,
 )
+
+from constructs import Construct
 from aws_cdk.aws_lambda import Function
 from aws_cdk.aws_s3 import Bucket
-from aws_cdk.core import (
-    Construct,
+from aws_cdk import (
     CfnResource,
     Aws,
     CfnParameter,
@@ -160,7 +161,7 @@ class PolicyFactory(Construct):
                     "forecast:Update*",
                     "forecast:TagResource",
                 ],
-                resources=["*"],
+                resources=["*"], # NOSONAR - This is allowed since it is set for the passed in grantee
             )
         )
 
@@ -228,7 +229,7 @@ class PolicyFactory(Construct):
                     "quicksight:SearchAnalyses",
                 ],
                 resources=[
-                    "*",
+                    "*", # NOSONAR - This is allowed since it is set for the passed in grantee
                 ],
             )
         )
@@ -245,7 +246,7 @@ class PolicyFactory(Construct):
                 quicksight_source.find_in_map("General", "QuickSightSourceTemplateArn"),
             )
             add_cfn_nag_suppressions(
-                resource=grantee.role.node.children[1].node.default_child,
+                resource=grantee.role.node.children[1],
                 suppressions=[
                     CfnNagSuppression(
                         "W76",

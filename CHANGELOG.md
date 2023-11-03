@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.5] - 2023-11-03
+### Updated
+- Fixed SonarQube security findings.
+- Updated inaccurate README deployment instructions.
+- Updated 3rd party libraries for compatibility.
+- Upgrade to CDK v2.
+
 ## [1.5.4] - 2023-04-18
 ### Updated
 - The bucket policy on the logging bucket to grant access to the logging service principal (logging.s3.amazonaws.com) for access log delivery.

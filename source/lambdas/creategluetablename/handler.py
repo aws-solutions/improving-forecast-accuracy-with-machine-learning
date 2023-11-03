@@ -18,7 +18,8 @@ from shared.logging import get_logger
 logger = get_logger(__name__)
 
 
-def creategluetablename(event, context):
+def creategluetablename(event, context):  # NOSONAR - context is a required argument for this function
+    # Removing context could potentially cause breaking changes in deployment
     dataset_group_name = event.get("dataset_group_name")
     timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
     glue_table_name = f"{dataset_group_name}_{timestamp}"

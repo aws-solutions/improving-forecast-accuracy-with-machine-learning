@@ -58,9 +58,9 @@ class Event:
             raise KeyNotFound
 
         # The name of the event is the stem of the file without extensions
-        file = DatasetFile(key=key, bucket=bucket)
+        _file = DatasetFile(key=key, bucket=bucket)
 
-        return bucket, key, file
+        return bucket, key, _file
 
     @property
     def event_id(self) -> str:

@@ -106,7 +106,7 @@ class DatasetFile:
         Get the full MD5 signature of an S3 object (streams in 10MB increments)
         :return:
         """
-        signature = md5() # nosec
+        signature = md5() # nosec # NOSONAR - this hashing data is safe here
         s3_object = self.cli.get_object(Bucket=self.bucket, Key=self.key)
 
         logger.info(f"getting signature for s3://{self.bucket}/{self.key}")

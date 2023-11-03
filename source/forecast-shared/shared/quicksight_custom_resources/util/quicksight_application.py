@@ -49,7 +49,6 @@ def read_config(file_name):
 
 class QuicksightApplication:
     def __init__(self, resource_properties):
-        # TODO: use the config data / file to figure out the supported_data_set_types
         supported_data_set_types = ["forecast"]
 
         self.resource_properties = resource_properties
@@ -61,11 +60,8 @@ class QuicksightApplication:
             data = read_config(config_file)
             self.global_state.update(data)
 
-        # TODO:RENAME: 'StackName' key name as this could be used out of stack. ApplicationName?
-        # TODO: create/use a uuid if no attack provided
         self.prefix = resource_properties.get("StackName", "Sample_Sol")
 
-        # TODO:RENAME: quicksight_template_arn -> quicksight_source_template_arn
         self.quicksight_template_arn = resource_properties.get(
             "QuickSightSourceTemplateArn", "Uninitialized QuickSightSourceTemplateArn"
         )

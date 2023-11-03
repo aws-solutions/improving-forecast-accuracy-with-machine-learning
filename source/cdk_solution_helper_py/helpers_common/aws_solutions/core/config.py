@@ -22,9 +22,9 @@ from aws_solutions.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-SOLUTION_ID_RE = re.compile(r"^SO(?P<id>\d+)(?P<component>[a-zA-Z]*)$")  # NOSONAR
+SOLUTION_ID_RE = re.compile(r"^SO(?P<id>\d+)(?P<component>[a-zA-Z]*)$") # NOSONAR - multi-conditioned REGEX allows more complexity.
 SOLUTION_VERSION_RE = re.compile(
-    r"^v(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"  # NOSONAR
+    r"^v(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$" # NOSONAR - multi-conditioned REGEX allows more complexity.
 )
 
 

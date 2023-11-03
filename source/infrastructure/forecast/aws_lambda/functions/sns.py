@@ -12,13 +12,12 @@
 # #####################################################################################################################
 from pathlib import Path
 
+from constructs import Construct
 from aws_cdk.aws_sns import TopicProps, Subscription, SubscriptionProtocol
-from aws_cdk.core import Construct, Aspects, CfnParameter, CfnCondition
+from aws_cdk import Aspects, CfnParameter, CfnCondition
 from aws_solutions_constructs.aws_lambda_sns import LambdaToSns
-
 from aws_solutions.cdk.aspects import ConditionalResources
 from aws_solutions.cdk.stepfunctions.solutionstep import SolutionStep
-
 
 class Notifications(SolutionStep):
     def __init__(

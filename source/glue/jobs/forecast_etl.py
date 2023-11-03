@@ -66,7 +66,7 @@ ITEM_METADATA = "ITEM_METADATA"
 FORECAST_EXPORT_JOB = "FORECAST_EXPORT_JOB"
 PREDICTOR_BACKTEST_EXPORT_JOB = "PREDICTOR_BACKTEST_EXPORT_JOB"
 SOLUTION_ID = "SO0123"
-SOLUTION_VERSION = "1.3.3"
+SOLUTION_VERSION = "1.5.5"
 CLIENT_CONFIG = Config(
     retries={"max_attempts": 10, "mode": "standard"},
     user_agent_extra=f"AwsSolution/{SOLUTION_ID}/{SOLUTION_VERSION}",
@@ -545,7 +545,7 @@ class ForecastStatus:
         :return: DynamicFrame representing the consolidated/ aggregated forecast input / output data
         """
         output_schema = ForecastStatus.empty()
-        input = self.target_time_series_data
+        _input = self.target_time_series_data
         export = self.forecast_export_job_data
         backtest = self.predictor_backtest_export_job_data
 
@@ -555,7 +555,7 @@ class ForecastStatus:
             md_fields = self.item_metadata_schema.fields
         except AttributeError:
             md_fields = []
-        attrs = input.map_generic_attribute_names(tts_fields, md_fields)
+        attrs = _input.map_generic_attribute_names(tts_fields, md_fields)
         attrs = export.map_generic_attribute_names(
             tts_fields, md_fields, attributes=attrs
         )
@@ -564,7 +564,7 @@ class ForecastStatus:
         )
 
         # drop metadata (will be joined later)
-        input.drop_metadata_fields()
+        _input.drop_metadata_fields()
         export.drop_metadata_fields()
         backtest.drop_metadata_fields()
 
@@ -575,7 +575,7 @@ class ForecastStatus:
         logger.info(
             "taking input TARGET_TIME_SERIES up to %s" % str(earliest_backtest_data)
         )
-        filtered_input = input.df.toDF()
+        filtered_input = _input.df.toDF()
         filtered_input = filtered_input.where(
             filtered_input["timestamp"] < earliest_backtest_data
         )
@@ -603,7 +603,7 @@ class ForecastStatus:
         )
 
         aggregate_dynamic_frame = DynamicFrame.fromDF(
-            aggregate, input.gc, "AGGREGATE_FORECAST"
+            aggregate, _input.gc, "AGGREGATE_FORECAST"
         )
         return aggregate_dynamic_frame
 

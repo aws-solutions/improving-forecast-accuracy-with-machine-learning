@@ -18,7 +18,7 @@ from pathlib import Path
 import forecast.sagemaker.notebook
 import pytest
 import quicksight
-from aws_cdk import core as cdk
+import aws_cdk as cdk
 from aws_cdk.assertions import Capture, Template, Match
 from aws_solutions.cdk import CDKSolution
 from forecast.stack import ForecastStack
@@ -27,27 +27,26 @@ solution = CDKSolution(cdk_json_path=Path(__file__).parent.absolute() / "cdk.jso
 
 from aspects.app_registry import AppRegistry
 
-
 @pytest.fixture(scope="module")
 def synth_template():
     app = cdk.App(
         context={
             "SOLUTION_NAME": "Improving Forecast Accuracy with Machine Learning",
-            "SOLUTION_ID": "SO0123",
-            "SOLUTION_VERSION": "v1.5.4",
+            "SOLUTION_ID": "SO0123Test",
+            "SOLUTION_VERSION": "v1.5.5",
             "APP_REG_NAME": "improving_forecast_accuracy_with_machine_learning",
             "APPLICATION_TYPE": "AWS-Solutions",
-            "VERSION": "1.5.4",
+            "VERSION": "1.5.5",
             "BUCKET_NAME": "test_bucket",
-            "NOTEBOOKS": forecast.sagemaker.notebook.context,
+            "NOTEBOOKS": forecast.sagemaker.notebook.context
         }
     )
 
     stack = ForecastStack(
         app,
         "forecast-stack-cdk",
-        description=f"Automate Amazon Forecast predictor and forecast generation and visualize forecasts via Amazon "
-                    f"QuickSight or an Amazon SageMaker Jupyter Notebook",
+        description="Automate Amazon Forecast predictor and forecast generation and visualize forecasts via Amazon " +
+                    "QuickSight or an Amazon SageMaker Jupyter Notebook",
         template_filename="improving-forecast-accuracy-with-machine-learning.template",
         synthesizer=solution.synthesizer,
         extra_mappings=quicksight.TemplateSource(
@@ -55,10 +54,11 @@ def synth_template():
             solution_version=app.node.try_get_context("SOLUTION_VERSION"),
         ).mappings,
     )
+
     cdk.Aspects.of(app).add(AppRegistry(stack, "AppRegistryAspect"))
     template = Template.from_stack(stack)
+    
     yield template, app
-
 
 def test_add_access_logs_bucket_policy(synth_template):
     template, app = synth_template

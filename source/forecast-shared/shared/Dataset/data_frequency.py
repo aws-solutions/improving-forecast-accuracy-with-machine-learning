@@ -21,7 +21,7 @@ _data_frequencies = ["Y", "M", "W", "D", "H", "30min", "15min", "10min", "5min",
 class DataFrequency:
     """Used to validate data frequencies provided in configuration files."""
 
-    valid_frequency = re.compile(r"^Y|M|W|D|H|30min|15min|10min|5min|1min$")
+    valid_frequency = re.compile(r"^(?:Y|M|W|D|H|30min|15min|10min|5min|1min)$")
 
     def __init__(self, frequency):
         if not self.valid_frequency.match(frequency):

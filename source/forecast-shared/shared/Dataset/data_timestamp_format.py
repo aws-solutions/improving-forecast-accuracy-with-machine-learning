@@ -17,7 +17,7 @@ import re
 class DataTimestampFormat:
     """Used to validate data timestamp formats provided in configuration files."""
 
-    valid_format = re.compile(r"^yyyy-MM-dd|yyyy-MM-dd HH:mm:ss$")
+    valid_format = re.compile(r"^(?:yyyy-MM-dd|yyyy-MM-dd HH:mm:ss)$")
 
     def __init__(self, format):
         if not self.valid_format.match(format):

@@ -1,5 +1,8 @@
+aws_cdk_lib==2.88.0
+aws-cdk.aws-servicecatalogappregistry-alpha==2.88.0a0
+aws_solutions_constructs.aws_lambda_sns==2.41.0
 black
-boto3
+boto3==1.26.83
 click==8.1.3
 coverage
 crhelper==2.0.11
@@ -7,27 +10,17 @@ docker==6.0.1
 flaky==3.7.0
 freezegun==1.2.2
 matplotlib==3.7.1
-moto==4.1.7
+moto
 numpy==1.24.2
 pytest>=7.3.1
 pytest-cov
 pytest-env
 pytest-mock==3.10.0
 PyYAML==6.0.0
+requests==2.31.0
 requests-mock==1.10.0
 responses==0.23.1
 tenacity==8.2.2
-aws_cdk.core==1.173.0
-aws_cdk.assertions==1.173.0
-aws_cdk.aws_iam==1.173.0
-aws_cdk.aws_lambda==1.173.0
-aws_cdk.aws_s3==1.173.0
-aws_cdk.aws_s3_deployment==1.173.0
-aws_cdk.aws_sns==1.173.0
-aws_cdk.aws_stepfunctions==1.173.0
-aws_cdk.aws_stepfunctions_tasks==1.173.0
-aws_solutions_constructs.aws_lambda_sns==1.173.0
-aws-cdk.aws-servicecatalogappregistry==1.173.0
 -e cdk_solution_helper_py/helpers_cdk
 -e cdk_solution_helper_py/helpers_common
 -e infrastructure

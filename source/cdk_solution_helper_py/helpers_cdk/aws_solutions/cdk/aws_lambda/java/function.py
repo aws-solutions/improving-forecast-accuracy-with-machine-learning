@@ -14,11 +14,11 @@ from pathlib import Path
 from typing import Optional
 
 import aws_cdk.aws_iam as iam
+import aws_cdk as cdk
+from constructs import Construct
 from aws_cdk.aws_lambda import Function, Runtime, RuntimeFamily, Code
-from aws_cdk.core import (
-    Construct,
+from aws_cdk import (
     BundlingOptions,
-    BundlingDockerImage,
     BundlingOutput,
     Aws,
 )
@@ -30,7 +30,7 @@ class SolutionsJavaFunction(Function):
     """This is similar to aws-cdk/aws-lambda-python, however it handles local building of Java Lambda Functions"""
 
     def __init__(
-        self,  # NOSONAR
+        self,  # NOSONAR (python:S107) - allow large number of method parameters
         scope: Construct,
         construct_id: str,
         project_path: Path,
@@ -79,7 +79,7 @@ class SolutionsJavaFunction(Function):
         kwargs["code"] = Code.from_asset(
             path=str(project_path),
             bundling=BundlingOptions(
-                image=BundlingDockerImage.from_registry("scratch"),  # NOT USED
+                image=cdk.DockerImage.from_registry("scratch"),  # NOT USED
                 command=["NOT-USED"],
                 entrypoint=["NOT-USED"],
                 local=bundling,

@@ -11,8 +11,8 @@
 #  the specific language governing permissions and limitations under the License.                                     #
 # #####################################################################################################################
 import jsii
-from aws_cdk.core import CfnCondition, IAspect, IConstruct
-
+from constructs import IConstruct
+from aws_cdk import CfnCondition, IAspect
 
 @jsii.implements(IAspect)
 class ConditionalResources:
