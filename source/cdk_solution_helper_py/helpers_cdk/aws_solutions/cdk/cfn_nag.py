@@ -15,7 +15,9 @@ from dataclasses import dataclass
 from typing import List
 
 import jsii
-from aws_cdk.core import CfnResource, IAspect, IConstruct
+
+from constructs import IConstruct
+from aws_cdk import CfnResource, IAspect
 
 
 @dataclass
@@ -26,16 +28,16 @@ class CfnNagSuppression:
 
 def add_cfn_nag_suppressions(
     resource: CfnResource, suppressions: List[CfnNagSuppression]
-):
-    resource.add_metadata(
-        "cfn_nag",
-        {
-            "rules_to_suppress": [
-                {"id": suppression.rule_id, "reason": suppression.reason}
-                for suppression in suppressions
-            ]
-        },
-    )
+):            
+        resource.add_metadata(
+            "cfn_nag",
+            {
+                "rules_to_suppress": [
+                    {"id": suppression.rule_id, "reason": suppression.reason}
+                    for suppression in suppressions
+                ]
+            },
+        )
 
 
 @jsii.implements(IAspect)
@@ -54,5 +56,5 @@ class CfnNagSuppressAll:
         elif "is_cfn_element" in dir(node.node.default_child) and (
             getattr(node.node.default_child, "cfn_resource_type", None)
             == self.resource_type
-        ):
+        ):        
             add_cfn_nag_suppressions(node.node.default_child, self.suppressions)

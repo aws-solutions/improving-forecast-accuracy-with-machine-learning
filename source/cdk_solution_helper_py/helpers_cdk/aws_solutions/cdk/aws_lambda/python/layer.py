@@ -15,8 +15,10 @@ from pathlib import Path
 from typing import Union, List
 from uuid import uuid4
 
+import aws_cdk as cdk
 from aws_cdk.aws_lambda import LayerVersion, Code
-from aws_cdk.core import Construct, BundlingOptions, BundlingDockerImage, AssetHashType
+from constructs import Construct
+from aws_cdk import BundlingOptions, AssetHashType
 
 from aws_solutions.cdk.aws_lambda.python.function import SolutionsPythonBundling
 
@@ -33,7 +35,7 @@ class SolutionsPythonLayerVersion(LayerVersion):
         requirements_path: Path,
         libraries: Union[List[Path], None] = None,
         **kwargs,
-    ):  # NOSONAR
+    ):  # NOSONAR (python:S107) - allow large number of method parameters
         self.scope = scope
         self.construct_id = construct_id
         self.requirements_path = requirements_path
@@ -71,7 +73,7 @@ class SolutionsPythonLayerVersion(LayerVersion):
 
         code = Code.from_asset(
             bundling=BundlingOptions(
-                image=BundlingDockerImage.from_registry(
+                image=cdk.DockerImage.from_registry(
                     "scratch"
                 ),  # NEVER USED - FOR NOW ALL BUNDLING IS LOCAL
                 command=["not_used"],

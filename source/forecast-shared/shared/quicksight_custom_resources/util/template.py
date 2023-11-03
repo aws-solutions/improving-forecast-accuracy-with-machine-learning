@@ -76,7 +76,6 @@ class Template(QuickSightResource):
         return response
 
     def create_from_dashboard(self, dashboard):
-        # TODO: REFACTOR+MERGE with create_from_analysis after testing to be the same
         logger.info(
             f"requesting quicksight create_template id {self.id} from dashboard"
         )

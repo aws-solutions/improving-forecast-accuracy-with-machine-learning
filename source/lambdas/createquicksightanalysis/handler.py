@@ -19,7 +19,8 @@ from shared.quicksight_custom_resources.quicksight import QuickSight
 logger = get_logger(__name__)
 
 
-def createquicksightanalysis(event, context):
+def createquicksightanalysis(event, context):  # NOSONAR - context is a required argument for this function
+    # Removing context could potentially cause breaking changes in deployment
     """
     Create consolidated export tables for forecast visualization
     :param event: lambda event

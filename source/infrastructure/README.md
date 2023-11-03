@@ -17,15 +17,17 @@ You can use the [AWS CDK](https://aws.amazon.com/cdk/) to deploy the solution di
 
 ```shell script
 # install the Python dependencies 
-cd <repository_name>/source/infrastructure 
+cd improving-forecast-accuracy-with-machine-learning/source
 virtualenv .venv 
 source .venv/bin/activate
-pip install -r source/requirements-build-and-test.txt
+cd source
+pip install -r requirements-build-and-test.txt
 
 # set environment variables required by the solution
 export BUCKET_NAME="placeholder"
 
-# bootstrap CDK (required once - deploys a CDK bootstrap CloudFormation stack for assets)  
+# Go to infrastructure dir and bootstrap CDK (required once - deploys a CDK bootstrap CloudFormation stack for assets)
+cd infrastructure
 cdk bootstrap --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
 
 # deploy with CDK
@@ -37,7 +39,7 @@ At this point, the stack will be built and deployed using CDK - the template wil
 parameter values. To modify the stack parameters, you can use the `--parameters` flag in CDK deploy - for example:
 
 ```shell script
-cdk deploy --parameters Email="<your_email>" --parameters NotebookDeploy=Yes
+cdk deploy --parameters Email="<your_email>" --parameters NotebookDeploy=Yes --parameters ForecastDeploy=Yes
 ``` 
 
 If you know that your environment variables (`BUCKET_NAME`) are unlikely to change between 
@@ -49,7 +51,7 @@ It is highly recommended to use CDK to deploy this solution (see step #1 above).
 solution, to package the solution for release as a CloudFormation template use the `build-s3-cdk-dist` script:
 
 ```
-cd <repository_name>/deployment 
+cd improving-forecast-accuracy-with-machine-learning/deployment 
 
 export BUCKET_NAME=my-bucket-name
 export SOLUTION_NAME=my-solution-name

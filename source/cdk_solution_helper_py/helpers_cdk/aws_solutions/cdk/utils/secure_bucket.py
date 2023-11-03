@@ -15,8 +15,9 @@ import logging
 from typing import List
 
 import aws_cdk.aws_iam as iam
+from constructs import Construct
 from aws_cdk.aws_s3 import Bucket, BucketEncryption, BlockPublicAccess
-from aws_cdk.core import Construct, RemovalPolicy, CfnResource, Aws
+from aws_cdk import RemovalPolicy, CfnResource, Aws
 
 from aws_solutions.cdk.cfn_nag import add_cfn_nag_suppressions, CfnNagSuppression
 

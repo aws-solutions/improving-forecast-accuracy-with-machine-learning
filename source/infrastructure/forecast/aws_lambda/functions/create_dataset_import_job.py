@@ -11,10 +11,8 @@
 #  the specific language governing permissions and limitations under the License.                                     #
 # #####################################################################################################################
 
-from aws_cdk.core import Construct
-
+from constructs import Construct
 from forecast.aws_lambda.functions.base import Base
-
 
 class CreateDatasetImportJob(Base):
     def __init__(self, scope: Construct, id: str, **kwargs):

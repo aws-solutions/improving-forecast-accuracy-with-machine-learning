@@ -26,8 +26,6 @@ class QuicksightApi:
         self.quicksight_application = QuicksightApplication(resource_properties)
         self.global_state = self.quicksight_application.get_global_state()
 
-    # TODO:REFACTOR?: Move to object itself, with state in QuicksightApplication: self.get_global_state().update({'datasource': resource.get_data()})
-    # TODO:REORG: delegate update of all the state to objects, which may decide to call out to QuicksightApplication
     def create_data_source(self):
         qs_resource = self.quicksight_application.get_data_source()
         response = qs_resource.create()

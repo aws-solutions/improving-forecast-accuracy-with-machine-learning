@@ -12,7 +12,8 @@
 # #####################################################################################################################
 from typing import Optional
 
-from aws_cdk.core import Construct, CfnMapping
+from constructs import Construct
+from aws_cdk import CfnMapping
 
 
 class Mappings:

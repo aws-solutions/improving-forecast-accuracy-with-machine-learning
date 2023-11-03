@@ -14,61 +14,58 @@
 # #####################################################################################################################
 
 import jsii
+import aws_cdk as cdk
+from aws_cdk import aws_servicecatalogappregistry_alpha as appreg_alpha
 from aws_cdk import aws_servicecatalogappregistry as appreg
-from aws_cdk import core as cdk
-
+from constructs import Construct, IConstruct
 
 @jsii.implements(cdk.IAspect)
-class AppRegistry(cdk.Construct):
+class AppRegistry(Construct):
     """This construct creates the resources required for AppRegistry and injects them as Aspects"""
 
-    def __init__(self, scope: cdk.Construct, id: str):
+    def __init__(self, scope: Construct, id: str):
         super().__init__(scope, id)
         self.solution_name = scope.node.try_get_context("SOLUTION_NAME")
         self.app_registry_name = scope.node.try_get_context("APP_REG_NAME")
         self.solution_id = scope.node.try_get_context("SOLUTION_ID")
         self.solution_version = scope.node.try_get_context("SOLUTION_VERSION")
         self.application_type = scope.node.try_get_context("APPLICATION_TYPE")
-        self.application: appreg.Application = None
+        self.application: appreg_alpha.Application = None
 
-    def visit(self, node: cdk.IConstruct) -> None:
+    def visit(self, node: IConstruct) -> None:
         """The visitor method invoked during cdk synthesis"""
-        if isinstance(node, cdk.Stack) and not node.nested:
-            # parent stack
-            stack: cdk.Stack = node
-            self.__create_app_for_app_registry()
-            self.application.associate_stack(stack)
-            self.__create_atttribute_group()
-            self.__add_tags_for_application()
+        if isinstance(node, cdk.Stack):
+            if not node.nested:
+                # parent stack
+                self.__create_app_for_app_registry(node)
+                stack: cdk.Stack = node
+                self.application.associate_application_with_stack(stack)
+                self.__create_attribute_group()
+                self.__add_tags_for_application()
+            else:
+                # nested stack
+                if not self.application:
+                    self.__create_app_for_app_registry(node.nested_stack_parent)
 
-        if isinstance(node, cdk.NestedStack):
-            # nested stack
-            stack: cdk.Stack = node
+                nested_stack: cdk.Stack = node
 
-            if not self.application:
-                self.__create_app_for_app_registry()
+                appreg.CfnResourceAssociation(
+                    nested_stack, 
+                    "ResourceAssociation",
+                    application=self.application.application_arn,
+                    resource=node.stack_id,
+                    resource_type="CFN_STACK"
+                )
 
-            resource_association = appreg.CfnResourceAssociation(
-                self,
-                f"{stack.get_logical_id}ResourceAssociation",
-                application=self.application.application_id,
-                resource=stack.stack_id,
-                resource_type="CFN_STACK",
-            )
-            cfn_stack_resource: cdk.CfnStack = stack.node.default_child
-            if hasattr(cfn_stack_resource, "cfn_options") and hasattr(
-                getattr(cfn_stack_resource, "cfn_options"), "condition"
-            ):
-                nested_stack_condition = getattr(getattr(cfn_stack_resource, "cfn_options"), "condition")
-                resource_association.cfn_options.condition = nested_stack_condition
+                nested_stack.node.default_child.node.add_dependency(self.application.node.default_child)
 
-    def __create_app_for_app_registry(self) -> None:
+    def __create_app_for_app_registry(self, stack: cdk.Stack) -> None:
         """Method to create an AppRegistry Application"""
-        self.application = appreg.Application(
-            self,
+        self.application = appreg_alpha.Application(
+            stack,
             "RegistrySetup",
             application_name=cdk.Fn.join(
-                "-", ["App", cdk.Aws.STACK_NAME, self.app_registry_name, cdk.Stack.of(self).account, cdk.Stack.of(self).region]
+                "-", ["App", cdk.Aws.STACK_NAME, str(self.app_registry_name), cdk.Stack.of(self).account, cdk.Stack.of(self).region]
             ),
             description=f"Service Catalog application to track and manage all your resources for the solution {self.solution_name}",
         )
@@ -76,23 +73,23 @@ class AppRegistry(cdk.Construct):
     def __add_tags_for_application(self) -> None:
         """Method to add tags to the AppRegistry's Application instance"""
         if not self.application:
-            self.__create_app_for_app_registry()
+            self.__create_app_for_app_registry(self.node)
 
         cdk.Tags.of(self.application).add("Solutions:SolutionID", self.solution_id)
         cdk.Tags.of(self.application).add("Solutions:SolutionName", self.solution_name)
         cdk.Tags.of(self.application).add("Solutions:SolutionVersion", self.solution_version)
         cdk.Tags.of(self.application).add("Solutions:ApplicationType", self.application_type)
 
-    def __create_atttribute_group(self) -> None:
+    def __create_attribute_group(self) -> None:
         """Method to add attributes to be as associated with the Application's instance in AppRegistry"""
         if not self.application:
-            self.__create_app_for_app_registry()
+            self.__create_app_for_app_registry(self.node)
 
-        self.application.associate_attribute_group(
-            appreg.AttributeGroup(
+        appreg_alpha.AttributeGroup.associate_with(
+            appreg_alpha.AttributeGroup(
                 self,
                 "AppAttributes",
-                attribute_group_name=f"AttGrp-{cdk.Aws.STACK_NAME}",
+                attribute_group_name=f"AttrGrp-{cdk.Aws.STACK_NAME}",
                 description="Attributes for Solutions Metadata",
                 attributes={
                     "applicationType": self.application_type,
@@ -101,4 +98,5 @@ class AppRegistry(cdk.Construct):
                     "solutionName": self.solution_name,
                 },
             )
+            , self.application
         )

@@ -39,7 +39,7 @@ CLIENT_CONFIG = Config(
 )
 
 
-logging.basicConfig(
+logging.basicConfig( # NOSONAR - this logging configuration is safe for this solution
     format="[%(levelname)s]\t%(asctime)s.%(msecs)dZ\t%(message)s\n",
     datefmt="%Y-%m-%dT%H:%M:%S",
     level=logging.INFO,
@@ -129,7 +129,7 @@ def copy_files(
     for root, directories, files in os.walk(destination):
         for f in files:
             os.chown(os.path.join(root, f), uid, gid)
-            os.chmod(local_path, mode=0o664)
+            os.chmod(local_path, mode=0o664) # NOSONAR - this is a safe permission.
 
 
 if __name__ == "__main__":

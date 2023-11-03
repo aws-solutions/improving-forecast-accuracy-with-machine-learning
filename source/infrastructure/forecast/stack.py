@@ -28,9 +28,9 @@ from aws_cdk.aws_stepfunctions import (
     Condition,
     Pass,
 )
+from constructs import Construct
 from aws_cdk.aws_stepfunctions_tasks import GlueStartJobRun
-from aws_cdk.core import (
-    Construct,
+from aws_cdk import (
     Fn,
     CfnCondition,
     Tags,
@@ -77,6 +77,7 @@ from forecast.sagemaker.notebook import Notebook
 class ForecastStack(SolutionStack):
     def __init__(self, scope: Construct, construct_id: str, *args, **kwargs) -> None:
         super().__init__(scope, construct_id, *args, **kwargs)
+        self.synthesizer.bind(self)
 
         # Parameters
         self.parameters = Parameters(self, "ForecastStackParameters")
@@ -336,7 +337,7 @@ class ForecastStack(SolutionStack):
             tracing_enabled=True,
         )
         add_cfn_nag_suppressions(
-            resource=state_machine.role.node.children[1].node.default_child,
+            resource=state_machine.role.node.children[1],
             suppressions=[
                 CfnNagSuppression(
                     "W76",
@@ -344,8 +345,21 @@ class ForecastStack(SolutionStack):
                 ),
                 CfnNagSuppression(
                     "W12", "IAM policy for AWS X-Ray requires an allow on *"
+                )            
+            ]
+        )
+        add_cfn_nag_suppressions(
+            resource=state_machine.role.node.try_find_child("DefaultPolicy").node.find_child("Resource"),
+            suppressions=[
+                CfnNagSuppression(
+                    "W76",
+                    "SPCM for IAM policy document is higher than 25",
                 ),
-            ],
+                CfnNagSuppression(
+                    "W12", 
+                    "IAM policy should not allow * resource"
+                )            
+            ]
         )
 
         # S3 Notifications
@@ -379,6 +393,10 @@ class ForecastStack(SolutionStack):
                 CfnNagSuppression(
                     "W12",
                     "bucket resource is '*' due to circular dependency with bucket and role creation at the same time",
+                ),        
+                CfnNagSuppression(
+                    "W76",
+                    "SPCM for IAM policy document is higher than 25"
                 )
             ],
         )

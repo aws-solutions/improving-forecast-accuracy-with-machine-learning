@@ -50,7 +50,7 @@ def get_logger(name):
         logging.getLogger("botocore").setLevel(logging.WARNING)
         logging.getLogger("urllib3").setLevel(logging.WARNING)
     else:
-        logging.basicConfig(level=get_level())
+        logging.basicConfig(level=get_level()) # NOSONAR - this logging configuration is safe for this solution
         logger = logging.getLogger(name)
 
     return logger

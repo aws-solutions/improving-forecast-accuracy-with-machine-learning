@@ -15,20 +15,17 @@ from typing import List
 
 import aws_cdk.aws_iam as iam
 from aws_cdk.aws_s3 import IBucket
-from aws_cdk.core import Fn, Aws, CfnResource
-
+from aws_cdk import Fn, Aws, CfnResource
 
 S3_ALL_ACTIONS = [
     "s3:GetObject",
     "s3:GetBucketLocation",
     "s3:ListBucket",
-    "s3:ListObjects",
     "s3:ListBucketMultipartUploads",
     "s3:ListMultipartUploadParts",
     "s3:PutObject",
     "s3:AbortMultipartUpload",
-    "s3:DeleteObject",
-    "s3:CreateMultipartUpload",
+    "s3:DeleteObject"
 ]
 
 
@@ -52,8 +49,7 @@ class GluePolicies:
                     effect=iam.Effect.ALLOW,
                     actions=[
                         "s3:GetObject",
-                        "s3:ListBucket",
-                        "s3:ListObjects",
+                        "s3:ListBucket"
                     ],
                     resources=[
                         Fn.sub(

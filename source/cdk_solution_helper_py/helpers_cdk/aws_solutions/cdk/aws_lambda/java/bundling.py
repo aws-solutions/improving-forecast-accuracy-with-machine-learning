@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Union, Dict, Optional
 
 import jsii
-from aws_cdk.core import ILocalBundling, BundlingOptions
+from aws_cdk import ILocalBundling, BundlingOptions
 
 from aws_solutions.cdk.helpers import copytree
 
@@ -44,7 +44,7 @@ class SolutionsJavaBundling:
         self.gradle_test = gradle_test
         self.distribution_path = distribution_path
 
-    def try_bundle(self, output_dir: str, options: BundlingOptions) -> bool:
+    def try_bundle(self, output_dir: str, options: BundlingOptions) -> bool: # NOSONAR - BundlingOptions is a required argument for this function
         source = Path(self.to_bundle).absolute()
 
         is_gradle_build = (source / "gradlew").exists()

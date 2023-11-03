@@ -51,7 +51,7 @@ def get_logger(name):
         logging.getLogger("urllib3").setLevel(logging.WARNING)
     else:
         # fmt: off
-        logging.basicConfig(level=get_level())  # NOSONAR - log level is user-specified; logs to stdout for AWS Lambda
+        logging.basicConfig(level=get_level()) # NOSONAR - log level is user-specified; logs to stdout for AWS Lambda
         # fmt: on
         logger = logging.getLogger(name)
 

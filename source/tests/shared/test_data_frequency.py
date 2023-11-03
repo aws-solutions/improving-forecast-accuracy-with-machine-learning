@@ -33,7 +33,7 @@ def test_dataset_frequency_invalid():
 
     assert (
         str(ex.value)
-        == "Invalid frequency. Frequency 1y does not match ^Y|M|W|D|H|30min|15min|10min|5min|1min$"
+        == "Invalid frequency. Frequency 1y does not match ^(?:Y|M|W|D|H|30min|15min|10min|5min|1min)$"
     )
 
 

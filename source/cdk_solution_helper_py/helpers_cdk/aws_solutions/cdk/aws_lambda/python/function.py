@@ -15,12 +15,13 @@ from pathlib import Path
 from typing import List, Union
 
 import aws_cdk.aws_iam as iam
+import aws_cdk as cdk
+
+from constructs import Construct
 from aws_cdk.aws_lambda import Function, Runtime, RuntimeFamily, Code
-from aws_cdk.core import (
-    Construct,
+from aws_cdk import (
     AssetHashType,
     BundlingOptions,
-    BundlingDockerImage,
     Aws,
 )
 
@@ -114,7 +115,7 @@ class SolutionsPythonFunction(Function):
         # to enable docker only bundling, use image=self._get_bundling_docker_image(bundling, runtime=runtime)
         code = Code.from_asset(
             bundling=BundlingOptions(
-                image=BundlingDockerImage.from_registry(
+                image=cdk.DockerImage.from_registry(
                     "scratch"
                 ),  # NOT USED - FOR NOW ALL BUNDLING IS LOCAL
                 command=["NOT-USED"],

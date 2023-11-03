@@ -75,7 +75,7 @@ class QuickSightResource:
         self.id = self.prefix + "_" + self.type
         self.name = self.prefix + "_" + self.type
         self.arn = None
-        # TODO:REFACTOR with use_props
+        
         if props:
             obj_props = props.get(self.type, None)
             if obj_props:
