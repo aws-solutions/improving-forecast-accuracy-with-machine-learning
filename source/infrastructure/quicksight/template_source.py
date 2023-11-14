@@ -22,7 +22,7 @@ class TemplateSource:
     def __init__(self, solution_name: str, solution_version: str):
         self.solution_name = solution_name
         self.solution_version = solution_version
-        self.quicksight_enabled = os.environ.get("ENABLE_QUICKSIGHT", False)
+        self.quicksight_enabled = os.environ.get("ENABLE_QUICKSIGHT", True)
         self.dist_account_id = os.environ.get("DIST_ACCOUNT_ID", None)
         self.dist_quicksight_namespace = os.environ.get(
             "DIST_QUICKSIGHT_NAMESPACE", None
