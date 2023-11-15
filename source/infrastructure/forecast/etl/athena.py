@@ -31,7 +31,7 @@ class Athena(Construct):
                 "WorkGroupConfiguration": {
                     "EnforceWorkGroupConfiguration": True,
                     "EngineVersion": {
-                        "SelectedEngineVersion": "Athena engine version 2"
+                        "SelectedEngineVersion": "Athena engine version 3"
                     },
                     "ResultConfiguration": {
                         "OutputLocation": athena_bucket.s3_url_for_object(
