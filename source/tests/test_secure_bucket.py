@@ -33,10 +33,10 @@ def synth_template():
         context={
             "SOLUTION_NAME": "Improving Forecast Accuracy with Machine Learning",
             "SOLUTION_ID": "SO0123Test",
-            "SOLUTION_VERSION": "v1.5.5",
+            "SOLUTION_VERSION": "v1.5.6",
             "APP_REG_NAME": "improving_forecast_accuracy_with_machine_learning",
             "APPLICATION_TYPE": "AWS-Solutions",
-            "VERSION": "1.5.5",
+            "VERSION": "1.5.6",
             "BUCKET_NAME": "test_bucket",
             "NOTEBOOKS": forecast.sagemaker.notebook.context
         }

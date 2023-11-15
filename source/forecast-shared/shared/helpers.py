@@ -25,7 +25,7 @@ from shared.logging import get_logger
 logger = get_logger(__name__)
 
 SOLUTION_ID = "SO0123"
-SOLUTION_VERSION = "1.5.5"
+SOLUTION_VERSION = "1.5.6"
 CLIENT_CONFIG = Config(
     retries={"max_attempts": 10, "mode": "standard"},
     user_agent_extra=f"AwsSolution/{SOLUTION_ID}/{SOLUTION_VERSION}",
