@@ -1,3 +1,7 @@
+# Deprecation Notice
+
+As of 01/01/2024, Improving Forecast Accuracy with Machine Learning has been deprecated and will not be receiving any additional features or updates. 
+
 # Improving Forecast Accuracy with Machine Learning
 
 The Improving Forecast Accuracy with Machine Learning solution is designed to help organizations that rely on generating 
